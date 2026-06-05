@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Main Theme for the App -->
+    <style name="Theme.BoxBox" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+
+    <!-- Splash Screen Theme (Required by your Manifest) -->
+    <style name="Theme.BoxBox.SplashScreen" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#E10600</item> <!-- F1 Red -->
+        <!-- Using a built-in android icon to prevent "ic_launcher_foreground not found" -->
+        <item name="windowSplashScreenAnimatedIcon">@android:drawable/ic_menu_report_image</item>
+        <item name="postSplashScreenTheme">@style/Theme.BoxBox</item>
+    </style>
+</resources>

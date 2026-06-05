@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "273001700710",
+    "project_id": "boxbox-89fa3",
+    "storage_bucket": "boxbox-89fa3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:273001700710:android:268d119f5974795ccbbca7",
+        "android_client_info": {
+          "package_name": "com.boxbox.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1s6Bc9izIPYt8GDgee1ovG17b7izbdIQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

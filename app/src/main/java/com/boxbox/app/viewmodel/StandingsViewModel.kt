@@ -1,0 +1,43 @@
+package com.boxbox.app.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.boxbox.app.data.model.*
+import com.boxbox.app.data.repository.BoxBoxRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+
+class StandingsViewModel(
+    private val repository: BoxBoxRepository = BoxBoxRepository()
+) : ViewModel() {
+
+    private val _driverStandings = MutableStateFlow<UiState<List<DriverStanding>>>(UiState.Loading)
+    val driverStandings: StateFlow<UiState<List<DriverStanding>>> = _driverStandings
+
+    private val _constructorStandings = MutableStateFlow<UiState<List<ConstructorStanding>>>(UiState.Loading)
+    val constructorStandings: StateFlow<UiState<List<ConstructorStanding>>> = _constructorStandings
+
+    init {
+        loadStandings()
+    }
+
+    fun loadStandings() {
+        viewModelScope.launch {
+            _driverStandings.value = UiState.Loading
+            _constructorStandings.value = UiState.Loading
+            try {
+                val drivers = repository.getDriverStandings()
+                _driverStandings.value = UiState.Success(drivers)
+            } catch (e: Exception) {
+                _driverStandings.value = UiState.Error(e.message ?: "Error")
+            }
+            try {
+                val constructors = repository.getConstructorStandings()
+                _constructorStandings.value = UiState.Success(constructors)
+            } catch (e: Exception) {
+                _constructorStandings.value = UiState.Error(e.message ?: "Error")
+            }
+        }
+    }
+}
