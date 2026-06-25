@@ -11,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,11 +34,11 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(F1Black)
+            .background(AppColors.background)
     ) {
         BoxBoxTopBar(title = "BOXBOX") {
             IconButton(onClick = {}) {
-                Icon(Icons.Default.Notifications, contentDescription = "Notifications", tint = Color.White)
+                Icon(Icons.Default.Notifications, contentDescription = "Notifications", tint = AppColors.onPrimary)
             }
         }
         when (val state = scheduleState) {
@@ -51,11 +50,9 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Countdown card
                     nextRace?.let { race ->
                         item { CountdownCard(race) }
                     }
-                    // Calendar list
                     item { SectionLabel("2025 Calendar") }
                     items(state.data) { race ->
                         RaceCard(race = race, isNext = race == nextRace)
@@ -74,24 +71,23 @@ fun CountdownCard(race: Race) {
 
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = F1Red,
+        color = AppColors.primary,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Next Race", color = Color.White.copy(alpha = 0.75f), fontSize = 11.sp, letterSpacing = 1.sp)
+            Text("Next Race", color = AppColors.onPrimary.copy(alpha = 0.75f), fontSize = 11.sp, letterSpacing = 1.sp)
             Spacer(Modifier.height(4.dp))
-            Text(countdown, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+            Text(countdown, color = AppColors.onPrimary, fontSize = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
             Spacer(Modifier.height(4.dp))
             Text(
                 "${race.raceName} · ${race.Circuit.Location.locality}",
-                color = Color.White.copy(alpha = 0.85f),
+                color = AppColors.onPrimary.copy(alpha = 0.85f),
                 fontSize = 13.sp
             )
             Spacer(Modifier.height(12.dp))
-            // Session times row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceAround
@@ -104,8 +100,8 @@ fun CountdownCard(race: Race) {
             Button(
                 onClick = { RaceNotificationScheduler.scheduleRaceNotification(context, race) },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White.copy(alpha = 0.2f),
-                    contentColor = Color.White
+                    containerColor = AppColors.onPrimary.copy(alpha = 0.2f),
+                    contentColor = AppColors.onPrimary
                 ),
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -121,10 +117,10 @@ fun CountdownCard(race: Race) {
 @Composable
 fun SessionChip(label: String, date: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = AppColors.onPrimary.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
         Text(
             formatSessionDate(date),
-            color = Color.White,
+            color = AppColors.onPrimary,
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium
         )
@@ -135,7 +131,7 @@ fun SessionChip(label: String, date: String) {
 fun RaceCard(race: Race, isNext: Boolean) {
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = F1DarkGray,
+        color = AppColors.surface,
         modifier = Modifier.fillMaxWidth(),
         tonalElevation = 2.dp
     ) {
@@ -146,26 +142,26 @@ fun RaceCard(race: Race, isNext: Boolean) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     "Round ${race.round}",
-                    color = if (isNext) F1Red else F1LightGray,
+                    color = if (isNext) AppColors.primary else AppColors.onSurfaceVariant,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(Modifier.height(2.dp))
-                Text(race.raceName, color = F1White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(race.raceName, color = AppColors.onBackground, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 Text(
                     "${formatDate(race.date)} · ${race.Circuit.Location.locality}",
-                    color = F1LightGray,
+                    color = AppColors.onSurfaceVariant,
                     fontSize = 12.sp
                 )
             }
             if (isNext) {
                 Surface(
                     shape = RoundedCornerShape(6.dp),
-                    color = F1Red.copy(alpha = 0.15f)
+                    color = AppColors.primary.copy(alpha = 0.15f)
                 ) {
                     Text(
                         "NEXT",
-                        color = F1Red,
+                        color = AppColors.primary,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)

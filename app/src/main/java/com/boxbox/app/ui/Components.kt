@@ -1,9 +1,8 @@
 package com.boxbox.app.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.border // Corrected import
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -19,7 +18,7 @@ import com.boxbox.app.ui.theme.*
 
 @Composable
 fun BoxBoxTopBar(title: String, actions: @Composable RowScope.() -> Unit = {}) {
-    Surface(color = F1Red, shadowElevation = 4.dp) {
+    Surface(color = AppColors.primary, shadowElevation = 4.dp) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -31,7 +30,7 @@ fun BoxBoxTopBar(title: String, actions: @Composable RowScope.() -> Unit = {}) {
         ) {
             Text(
                 text = title,
-                color = Color.White,
+                color = AppColors.onPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 2.sp
@@ -43,7 +42,7 @@ fun BoxBoxTopBar(title: String, actions: @Composable RowScope.() -> Unit = {}) {
 
 @Composable
 fun LiveTopBar(subtitle: String, lap: String = "") {
-    Surface(color = F1Black, shadowElevation = 4.dp) {
+    Surface(color = AppColors.surface, shadowElevation = 4.dp) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -56,10 +55,10 @@ fun LiveTopBar(subtitle: String, lap: String = "") {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 LiveDot()
                 Spacer(Modifier.width(8.dp))
-                Text(subtitle, color = F1White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(subtitle, color = AppColors.onBackground, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             }
             if (lap.isNotEmpty()) {
-                Text(lap, color = F1LightGray, fontSize = 12.sp)
+                Text(lap, color = AppColors.onSurfaceVariant, fontSize = 12.sp)
             } else {
                 LiveBadge()
             }
@@ -73,19 +72,19 @@ fun LiveDot() {
         modifier = Modifier
             .size(8.dp)
             .clip(CircleShape)
-            .background(F1Red)
+            .background(AppColors.primary)
     )
 }
 
 @Composable
 fun LiveBadge() {
     Surface(
-        color = F1Red,
+        color = AppColors.primary,
         shape = RoundedCornerShape(4.dp)
     ) {
         Text(
             text = "LIVE",
-            color = Color.White,
+            color = AppColors.onPrimary,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
@@ -107,26 +106,20 @@ fun TeamColorBar(teamName: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun TyreDot(compound: String) {
+fun TyreIndicator(compound: String) {
     val color = when (compound.uppercase()) {
-        "SOFT" -> F1Red
+        "SOFT" -> Color(0xFFE10600)
         "MEDIUM" -> F1Yellow
-        "HARD" -> F1White
+        "HARD" -> Color(0xFFE8E8E8)
         "INTERMEDIATE" -> F1Green
         "WET" -> Color(0xFF0090FF)
-        else -> F1LightGray
+        else -> Color(0xFF888888)
     }
-
-    // Moderniji i čišći način crtanja gume pomoću Modifiers
     Box(
         modifier = Modifier
-            .size(12.dp)
-            .border(
-                width = 1.dp,
-                color = color,
-                shape = CircleShape
-            )
-            .padding(2.dp),
+            .size(14.dp)
+            .border(1.5.dp, color, CircleShape) // Fixed syntax error here
+            .padding(3.dp),
         contentAlignment = Alignment.Center
     ) {
         Box(
@@ -139,36 +132,13 @@ fun TyreDot(compound: String) {
 }
 
 @Composable
-fun TyreIndicator(compound: String) {
-    val color = when (compound.uppercase()) {
-        "SOFT" -> F1Red
-        "MEDIUM" -> F1Yellow
-        "HARD" -> F1White
-        "INTERMEDIATE" -> F1Green
-        "WET" -> Color(0xFF0090FF)
-        else -> F1LightGray
-    }
-    Box(
-        modifier = Modifier
-            .size(12.dp)
-            .clip(CircleShape)
-            .background(color.copy(alpha = 0.2f))
-            .padding(2.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(CircleShape)
-                .background(color)
-        )
-    }
-}
+fun TyreDot(compound: String) = TyreIndicator(compound)
 
 @Composable
 fun SectionLabel(text: String) {
     Text(
         text = text.uppercase(),
-        color = F1LightGray,
+        color = AppColors.onSurfaceVariant,
         fontSize = 10.sp,
         fontWeight = FontWeight.Bold,
         letterSpacing = 1.5.sp,
@@ -179,7 +149,7 @@ fun SectionLabel(text: String) {
 @Composable
 fun LoadingScreen() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(color = F1Red)
+        CircularProgressIndicator(color = AppColors.primary)
     }
 }
 
@@ -187,31 +157,17 @@ fun LoadingScreen() {
 fun ErrorScreen(message: String, onRetry: () -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(message, color = F1White)
+            Text(message, color = AppColors.onBackground)
             Spacer(Modifier.height(12.dp))
             Button(
                 onClick = onRetry,
-                colors = ButtonDefaults.buttonColors(containerColor = F1Red)
-            ) { Text("Retry") }
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.primary)
+            ) { Text("Retry", color = AppColors.onPrimary) }
         }
     }
 }
 
-fun getTeamColor(teamName: String): Color {
-    return when {
-        teamName.contains("Red Bull", ignoreCase = true) -> RedBullColor
-        teamName.contains("Ferrari", ignoreCase = true) -> FerrariColor
-        teamName.contains("McLaren", ignoreCase = true) -> McLarenColor
-        teamName.contains("Mercedes", ignoreCase = true) -> MercedesColor
-        teamName.contains("Aston", ignoreCase = true) -> AstonMartinColor
-        teamName.contains("Alpine", ignoreCase = true) -> AlpineColor
-        teamName.contains("Williams", ignoreCase = true) -> WilliamsColor
-        teamName.contains("RB", ignoreCase = true) || teamName.contains("Toro", ignoreCase = true) -> RBColor
-        teamName.contains("Sauber", ignoreCase = true) || teamName.contains("Alfa", ignoreCase = true) -> SauberColor
-        teamName.contains("Haas", ignoreCase = true) -> HaasColor
-        else -> Color(0xFF888888)
-    }
-}
+fun getTeamColor(teamName: String): Color = resolveTeamAccent(teamName)
 
 fun formatLapTime(seconds: Double?): String {
     if (seconds == null) return "--:--.---"

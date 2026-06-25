@@ -1,7 +1,6 @@
 package com.boxbox.app.ui.standings
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -19,6 +18,8 @@ import com.boxbox.app.data.model.*
 import com.boxbox.app.ui.*
 import com.boxbox.app.ui.theme.*
 import com.boxbox.app.viewmodel.StandingsViewModel
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.composed
 
 @Composable
 fun StandingsScreen(vm: StandingsViewModel = viewModel()) {
@@ -29,16 +30,15 @@ fun StandingsScreen(vm: StandingsViewModel = viewModel()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(F1Black)
+            .background(AppColors.background)
     ) {
         BoxBoxTopBar(title = "STANDINGS")
 
-        // Segment control
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp)
-                .background(F1DarkGray, RoundedCornerShape(10.dp))
+                .background(AppColors.surface, RoundedCornerShape(10.dp))
                 .padding(3.dp)
         ) {
             listOf("Drivers", "Constructors").forEachIndexed { index, label ->
@@ -46,7 +46,7 @@ fun StandingsScreen(vm: StandingsViewModel = viewModel()) {
                     modifier = Modifier
                         .weight(1f)
                         .background(
-                            if (selectedTab == index) F1Red else Color.Transparent,
+                            if (selectedTab == index) AppColors.primary else Color.Transparent,
                             RoundedCornerShape(8.dp)
                         )
                         .clickableNoRipple { selectedTab = index }
@@ -55,7 +55,7 @@ fun StandingsScreen(vm: StandingsViewModel = viewModel()) {
                 ) {
                     Text(
                         label,
-                        color = if (selectedTab == index) Color.White else F1LightGray,
+                        color = if (selectedTab == index) AppColors.onPrimary else AppColors.onSurfaceVariant,
                         fontSize = 13.sp,
                         fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal
                     )
@@ -99,7 +99,7 @@ fun DriverStandingRow(standing: DriverStanding) {
 
     Surface(
         shape = RoundedCornerShape(10.dp),
-        color = F1DarkGray,
+        color = AppColors.surface,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -108,7 +108,7 @@ fun DriverStandingRow(standing: DriverStanding) {
         ) {
             Text(
                 standing.position,
-                color = if (isFirst) F1Red else F1LightGray,
+                color = if (isFirst) AppColors.primary else AppColors.onSurfaceVariant,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.width(24.dp)
@@ -118,20 +118,20 @@ fun DriverStandingRow(standing: DriverStanding) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     "${standing.Driver.givenName} ${standing.Driver.familyName}",
-                    color = F1White,
+                    color = AppColors.onBackground,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
                 )
-                Text(teamName, color = F1LightGray, fontSize = 11.sp)
+                Text(teamName, color = AppColors.onSurfaceVariant, fontSize = 11.sp)
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     standing.points,
-                    color = if (isFirst) F1White else F1LightGray,
+                    color = if (isFirst) AppColors.onBackground else AppColors.onSurfaceVariant,
                     fontSize = 15.sp,
                     fontWeight = if (isFirst) FontWeight.Bold else FontWeight.Normal
                 )
-                Text("pts", color = F1LightGray, fontSize = 10.sp)
+                Text("pts", color = AppColors.onSurfaceVariant, fontSize = 10.sp)
             }
         }
     }
@@ -156,7 +156,7 @@ fun ConstructorStandingRow(standing: ConstructorStanding) {
     val isFirst = standing.position == "1"
     Surface(
         shape = RoundedCornerShape(10.dp),
-        color = F1DarkGray,
+        color = AppColors.surface,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -165,7 +165,7 @@ fun ConstructorStandingRow(standing: ConstructorStanding) {
         ) {
             Text(
                 standing.position,
-                color = if (isFirst) F1Red else F1LightGray,
+                color = if (isFirst) AppColors.primary else AppColors.onSurfaceVariant,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.width(24.dp)
@@ -174,7 +174,7 @@ fun ConstructorStandingRow(standing: ConstructorStanding) {
             Spacer(Modifier.width(10.dp))
             Text(
                 standing.Constructor.name,
-                color = F1White,
+                color = AppColors.onBackground,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f)
@@ -182,19 +182,23 @@ fun ConstructorStandingRow(standing: ConstructorStanding) {
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     standing.points,
-                    color = if (isFirst) F1White else F1LightGray,
+                    color = if (isFirst) AppColors.onBackground else AppColors.onSurfaceVariant,
                     fontSize = 15.sp,
                     fontWeight = if (isFirst) FontWeight.Bold else FontWeight.Normal
                 )
-                Text("pts", color = F1LightGray, fontSize = 10.sp)
+                Text("pts", color = AppColors.onSurfaceVariant, fontSize = 10.sp)
             }
         }
     }
 }
 
-fun Modifier.clickableNoRipple(onClick: () -> Unit): Modifier =
-    this.then(Modifier.clickable(
-        interactionSource = androidx.compose.foundation.interaction.MutableInteractionSource(),
+// Modifiers must use 'composed' to handle state (like remember),
+// they should NOT be marked as @Composable
+fun Modifier.clickableNoRipple(onClick: () -> Unit): Modifier = composed {
+    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    this.clickable(
+        interactionSource = interactionSource,
         indication = null,
         onClick = onClick
-    ))
+    )
+}

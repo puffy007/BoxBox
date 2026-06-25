@@ -2,7 +2,6 @@ package com.boxbox.app.ui.live
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -44,23 +43,21 @@ fun LiveScreen(vm: LiveViewModel = viewModel()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(F1Black)
+            .background(AppColors.background)
     ) {
-        // Header
         LiveTopBar(
             subtitle = currentSession?.let { "${it.circuit_short_name} — ${it.session_name}" } ?: "Loading...",
             lap = if (!isLive) "REPLAY" else ""
         )
 
-        // Tab row
         TabRow(
             selectedTabIndex = selectedTab,
-            containerColor = F1Black,
-            contentColor = F1Red,
+            containerColor = AppColors.background,
+            contentColor = AppColors.primary,
             indicator = { tabPositions ->
                 TabRowDefaults.SecondaryIndicator(
                     modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                    color = F1Red
+                    color = AppColors.primary
                 )
             }
         ) {
@@ -72,7 +69,7 @@ fun LiveScreen(vm: LiveViewModel = viewModel()) {
                         Text(
                             title,
                             fontSize = 12.sp,
-                            color = if (selectedTab == index) F1Red else F1LightGray
+                            color = if (selectedTab == index) AppColors.primary else AppColors.onSurfaceVariant
                         )
                     }
                 )
@@ -87,8 +84,6 @@ fun LiveScreen(vm: LiveViewModel = viewModel()) {
     }
 }
 
-// ---- Track Map ----
-
 @Composable
 fun TrackMapTab(
     positions: List<Position>,
@@ -100,10 +95,9 @@ fun TrackMapTab(
             .fillMaxSize()
             .padding(12.dp)
     ) {
-        // Track SVG-style canvas
         Surface(
             shape = RoundedCornerShape(14.dp),
-            color = F1DarkGray,
+            color = AppColors.surface,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(220.dp)
@@ -115,7 +109,6 @@ fun TrackMapTab(
 
         Spacer(Modifier.height(12.dp))
 
-        // Top 5 quick timing
         SectionLabel("Positions")
         positions.take(5).forEach { pos ->
             val driver = drivers.find { it.driver_number == pos.driver_number }
@@ -127,11 +120,15 @@ fun TrackMapTab(
 
 @Composable
 fun TrackCanvas(positions: List<Position>, drivers: List<Driver>) {
+    val trackColor = AppColors.surfaceVariant
+    val trackSurfaceColor = AppColors.surfaceVariant
+    val accentColor = AppColors.primary
+    val sectorColor = F1Yellow
+
     Canvas(modifier = Modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
 
-        // Draw Silverstone-inspired track outline
         val trackPath = Path().apply {
             moveTo(w * 0.1f, h * 0.8f)
             lineTo(w * 0.1f, h * 0.5f)
@@ -155,32 +152,32 @@ fun TrackCanvas(positions: List<Position>, drivers: List<Driver>) {
             close()
         }
 
-        // Track border (thick dark)
-        drawPath(trackPath, color = Color(0xFF2A2A2A), style = Stroke(width = 22f, cap = StrokeCap.Round, join = StrokeJoin.Round))
-        // Track surface
-        drawPath(trackPath, color = Color(0xFF1E1E1E), style = Stroke(width = 16f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawPath(trackPath, color = trackColor, style = Stroke(width = 22f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawPath(trackPath, color = trackSurfaceColor.copy(alpha = 0.6f), style = Stroke(width = 16f, cap = StrokeCap.Round, join = StrokeJoin.Round))
 
-        // Start/finish line
         drawLine(
-            color = Color(0xFFE10600),
+            color = accentColor,
             start = Offset(w * 0.1f, h * 0.8f),
             end = Offset(w * 0.1f, h * 0.72f),
             strokeWidth = 4f
         )
 
-        // Sector labels
         drawContext.canvas.nativeCanvas.apply {
             val paint = android.graphics.Paint().apply {
-                color = android.graphics.Color.parseColor("#EF9F27")
+                color = android.graphics.Color.argb(
+                    (sectorColor.alpha * 255).toInt(),
+                    (sectorColor.red * 255).toInt(),
+                    (sectorColor.green * 255).toInt(),
+                    (sectorColor.blue * 255).toInt()
+                )
                 textSize = 28f
                 typeface = android.graphics.Typeface.DEFAULT_BOLD
             }
             drawText("S1", w * 0.04f, h * 0.45f, paint)
-            drawText("S2", w * 0.55f, h * 0.02f * 2.5f, paint)
+            drawText("S2", w * 0.55f, h * 0.05f, paint)
             drawText("S3", w * 0.78f, h * 0.92f, paint)
         }
 
-        // Car dots — distribute along track path based on position
         val trackPoints = generateTrackPoints(w, h, 20)
         positions.take(20).forEachIndexed { index, pos ->
             val driver = drivers.find { it.driver_number == pos.driver_number }
@@ -190,14 +187,10 @@ fun TrackCanvas(positions: List<Position>, drivers: List<Driver>) {
 
             val point = trackPoints.getOrElse(index) { Offset(w * 0.5f, h * 0.5f) }
 
-            // Glow
             drawCircle(color = teamColor.copy(alpha = 0.3f), radius = 14f, center = point)
-            // Main dot
             drawCircle(color = teamColor, radius = 9f, center = point)
-            // Border
             drawCircle(color = Color.Black, radius = 9f, center = point, style = Stroke(width = 1.5f))
 
-            // Driver code text
             drawContext.canvas.nativeCanvas.apply {
                 val paint = android.graphics.Paint().apply {
                     color = android.graphics.Color.WHITE
@@ -217,28 +210,14 @@ fun TrackCanvas(positions: List<Position>, drivers: List<Driver>) {
 }
 
 fun generateTrackPoints(w: Float, h: Float, count: Int): List<Offset> {
-    // Pre-defined points along the Silverstone-inspired track
     val points = listOf(
-        Offset(w * 0.1f, h * 0.65f),
-        Offset(w * 0.1f, h * 0.5f),
-        Offset(w * 0.12f, h * 0.38f),
-        Offset(w * 0.18f, h * 0.28f),
-        Offset(w * 0.26f, h * 0.23f),
-        Offset(w * 0.34f, h * 0.2f),
-        Offset(w * 0.38f, h * 0.13f),
-        Offset(w * 0.42f, h * 0.07f),
-        Offset(w * 0.5f, h * 0.03f),
-        Offset(w * 0.62f, h * 0.04f),
-        Offset(w * 0.72f, h * 0.07f),
-        Offset(w * 0.8f, h * 0.13f),
-        Offset(w * 0.83f, h * 0.22f),
-        Offset(w * 0.82f, h * 0.35f),
-        Offset(w * 0.78f, h * 0.5f),
-        Offset(w * 0.7f, h * 0.57f),
-        Offset(w * 0.6f, h * 0.6f),
-        Offset(w * 0.52f, h * 0.68f),
-        Offset(w * 0.38f, h * 0.79f),
-        Offset(w * 0.22f, h * 0.78f)
+        Offset(w * 0.1f, h * 0.65f), Offset(w * 0.1f, h * 0.5f), Offset(w * 0.12f, h * 0.38f),
+        Offset(w * 0.18f, h * 0.28f), Offset(w * 0.26f, h * 0.23f), Offset(w * 0.34f, h * 0.2f),
+        Offset(w * 0.38f, h * 0.13f), Offset(w * 0.42f, h * 0.07f), Offset(w * 0.5f, h * 0.03f),
+        Offset(w * 0.62f, h * 0.04f), Offset(w * 0.72f, h * 0.07f), Offset(w * 0.8f, h * 0.13f),
+        Offset(w * 0.83f, h * 0.22f), Offset(w * 0.82f, h * 0.35f), Offset(w * 0.78f, h * 0.5f),
+        Offset(w * 0.7f, h * 0.57f), Offset(w * 0.6f, h * 0.6f), Offset(w * 0.52f, h * 0.68f),
+        Offset(w * 0.38f, h * 0.79f), Offset(w * 0.22f, h * 0.78f)
     )
     return points.take(count)
 }
@@ -253,7 +232,7 @@ fun QuickTimingRow(pos: Position, driver: Driver?, stint: Stint?) {
     ) {
         Text(
             "${pos.position}",
-            color = if (pos.position == 1) F1Red else F1LightGray,
+            color = if (pos.position == 1) AppColors.primary else AppColors.onSurfaceVariant,
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.width(24.dp)
@@ -262,7 +241,7 @@ fun QuickTimingRow(pos: Position, driver: Driver?, stint: Stint?) {
         Spacer(Modifier.width(8.dp))
         Text(
             driver?.name_acronym ?: pos.driver_number.toString(),
-            color = F1White,
+            color = AppColors.onBackground,
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.width(48.dp)
@@ -270,13 +249,11 @@ fun QuickTimingRow(pos: Position, driver: Driver?, stint: Stint?) {
         stint?.let {
             TyreIndicator(it.compound)
             Spacer(Modifier.width(4.dp))
-            Text("L${it.lap_start}", color = F1LightGray, fontSize = 11.sp)
+            Text("L${it.lap_start}", color = AppColors.onSurfaceVariant, fontSize = 11.sp)
         }
     }
-    Divider(color = F1MidGray, thickness = 0.5.dp)
+    Divider(color = AppColors.outline, thickness = 0.5.dp)
 }
-
-// ---- Timing Tab ----
 
 @Composable
 fun TimingTab(
@@ -318,7 +295,7 @@ fun TimingRow(
 ) {
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = F1DarkGray,
+        color = AppColors.surface,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -327,7 +304,7 @@ fun TimingRow(
         ) {
             Text(
                 "${pos.position}",
-                color = if (pos.position == 1) F1Red else F1LightGray,
+                color = if (pos.position == 1) AppColors.primary else AppColors.onSurfaceVariant,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.width(22.dp)
@@ -338,7 +315,7 @@ fun TimingRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         driver?.name_acronym ?: pos.driver_number.toString(),
-                        color = F1White,
+                        color = AppColors.onBackground,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -349,13 +326,13 @@ fun TimingRow(
                 }
                 Text(
                     interval?.gap_to_leader?.let { if (it == 0.0) "Leader" else "+${"%.3f".format(it)}s" } ?: "",
-                    color = F1LightGray,
+                    color = AppColors.onSurfaceVariant,
                     fontSize = 11.sp
                 )
             }
             Text(
                 formatLapTime(lap?.lap_duration),
-                color = if (isFastest) F1Purple else F1LightGray,
+                color = if (isFastest) F1Purple else AppColors.onSurfaceVariant,
                 fontSize = 12.sp,
                 fontWeight = if (isFastest) FontWeight.Bold else FontWeight.Normal,
                 fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
@@ -364,18 +341,15 @@ fun TimingRow(
     }
 }
 
-// ---- Race Control Tab ----
-
 @Composable
 fun RaceControlTab(messages: List<RaceControlMessage>) {
     if (messages.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No race control messages yet", color = F1LightGray)
+            Text("No race control messages yet", color = AppColors.onSurfaceVariant)
         }
         return
     }
 
-    // Show alert banner for latest SC/VSC/Red flag
     val latestAlert = messages.firstOrNull {
         it.flag in listOf("SAFETY_CAR", "RED", "VIRTUAL_SAFETY_CAR")
     }
@@ -402,13 +376,13 @@ fun AlertBanner(msg: RaceControlMessage) {
         "RED" -> Color(0xFF3A0000)
         "SAFETY_CAR" -> Color(0xFF2A1400)
         "VIRTUAL_SAFETY_CAR" -> Color(0xFF2A2000)
-        else -> F1DarkGray
+        else -> AppColors.surface
     }
     val textColor = when (msg.flag) {
         "RED" -> Color(0xFFFF4444)
         "SAFETY_CAR" -> F1Orange
         "VIRTUAL_SAFETY_CAR" -> F1Yellow
-        else -> F1White
+        else -> AppColors.onBackground
     }
     val emoji = when (msg.flag) {
         "RED" -> "🔴"
@@ -443,21 +417,21 @@ fun RaceControlCard(msg: RaceControlMessage) {
     val borderColor = when (msg.flag) {
         "GREEN" -> F1Green
         "YELLOW", "DOUBLE_YELLOW" -> F1Yellow
-        "RED" -> F1Red
+        "RED" -> Color(0xFFFF4444)
         "SAFETY_CAR" -> F1Orange
         "VIRTUAL_SAFETY_CAR" -> F1Yellow
-        "CHEQUERED" -> F1White
+        "CHEQUERED" -> AppColors.onBackground
         else -> when {
             msg.category == "Drs" -> Color(0xFF00AAFF)
             msg.category == "Flag" -> F1Yellow
             msg.message.contains("PENALTY", ignoreCase = true) -> F1Purple
-            else -> F1LightGray
+            else -> AppColors.onSurfaceVariant
         }
     }
 
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = F1DarkGray,
+        color = AppColors.surface,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(modifier = Modifier.padding(0.dp)) {
@@ -471,14 +445,14 @@ fun RaceControlCard(msg: RaceControlMessage) {
                     )
             )
             Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                Text(msg.message, color = F1White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(msg.message, color = AppColors.onBackground, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(2.dp))
                 Text(
                     buildString {
                         msg.lap_number?.let { append("Lap $it · ") }
                         append(msg.date.take(19).replace("T", " "))
                     },
-                    color = F1LightGray,
+                    color = AppColors.onSurfaceVariant,
                     fontSize = 11.sp
                 )
             }

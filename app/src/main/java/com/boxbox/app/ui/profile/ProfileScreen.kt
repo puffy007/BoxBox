@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -34,12 +35,27 @@ import com.boxbox.app.viewmodel.AuthState
 import com.boxbox.app.viewmodel.ProfileViewModel
 import java.io.File
 
+// All F1 teams for the picker
+val allTeams = listOf(
+    "Red Bull Racing", "Ferrari", "McLaren", "Mercedes",
+    "Aston Martin", "Alpine", "Williams", "RB",
+    "Kick Sauber", "Haas"
+)
+
 @Composable
 fun ProfileScreen(vm: ProfileViewModel = viewModel()) {
     val authState by vm.authState.collectAsState()
     val actionResult by vm.actionResult.collectAsState()
+    val profileState by vm.profile.collectAsState()
 
-    // Show snackbar for action results
+    // Keep global ThemeState in sync with the loaded profile's favourite team
+    LaunchedEffect(profileState) {
+        val state = profileState
+        if (state is UiState.Success) {
+            ThemeState.favouriteTeam = state.data.favouriteTeam
+        }
+    }
+
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(actionResult) {
         actionResult?.let {
@@ -50,7 +66,7 @@ fun ProfileScreen(vm: ProfileViewModel = viewModel()) {
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = F1Black
+        containerColor = AppColors.background
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             when (authState) {
@@ -71,7 +87,7 @@ fun AuthScreen(vm: ProfileViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(F1Black)
+            .background(AppColors.background)
     ) {
         BoxBoxTopBar(title = if (isSignUp) "CREATE ACCOUNT" else "SIGN IN")
         Column(
@@ -81,9 +97,8 @@ fun AuthScreen(vm: ProfileViewModel) {
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Logo
             Text("🏎️", fontSize = 48.sp)
-            Text("BOXBOX", color = F1Red, fontSize = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp)
+            Text("BOXBOX", color = AppColors.primary, fontSize = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp)
             Spacer(Modifier.height(32.dp))
 
             if (isSignUp) {
@@ -120,16 +135,16 @@ fun AuthScreen(vm: ProfileViewModel) {
                     else vm.signIn(email, password)
                 },
                 modifier = Modifier.fillMaxWidth().height(48.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = F1Red),
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.primary),
                 shape = RoundedCornerShape(10.dp)
             ) {
-                Text(if (isSignUp) "Create Account" else "Sign In", fontWeight = FontWeight.Bold)
+                Text(if (isSignUp) "Create Account" else "Sign In", fontWeight = FontWeight.Bold, color = AppColors.onPrimary)
             }
             Spacer(Modifier.height(16.dp))
             TextButton(onClick = { isSignUp = !isSignUp }) {
                 Text(
                     if (isSignUp) "Already have an account? Sign in" else "No account? Sign up",
-                    color = F1LightGray
+                    color = AppColors.onSurfaceVariant
                 )
             }
         }
@@ -144,7 +159,6 @@ fun ProfileContent(vm: ProfileViewModel) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showPhotoOptions by remember { mutableStateOf(false) }
 
-    // Camera
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success) cameraUri?.let { vm.uploadPhoto(it) }
@@ -156,11 +170,11 @@ fun ProfileContent(vm: ProfileViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(F1Black)
+            .background(AppColors.background)
     ) {
         BoxBoxTopBar(title = "PROFILE") {
             IconButton(onClick = { vm.signOut() }) {
-                Icon(Icons.Default.ExitToApp, contentDescription = "Sign out", tint = Color.White)
+                Icon(Icons.Default.ExitToApp, contentDescription = "Sign out", tint = AppColors.onPrimary)
             }
         }
 
@@ -177,19 +191,17 @@ fun ProfileContent(vm: ProfileViewModel) {
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Avatar + name
                     item {
                         Column(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Box(contentAlignment = Alignment.BottomEnd) {
-                                // Avatar
                                 Box(
                                     modifier = Modifier
                                         .size(80.dp)
                                         .clip(CircleShape)
-                                        .background(F1Red)
+                                        .background(AppColors.primary)
                                         .clickable { showPhotoOptions = true },
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -203,34 +215,33 @@ fun ProfileContent(vm: ProfileViewModel) {
                                     } else {
                                         Text(
                                             profile.displayName.take(2).uppercase(),
-                                            color = Color.White,
+                                            color = AppColors.onPrimary,
                                             fontSize = 22.sp,
                                             fontWeight = FontWeight.Bold
                                         )
                                     }
                                 }
-                                // Camera icon
                                 Box(
                                     modifier = Modifier
                                         .size(28.dp)
                                         .clip(CircleShape)
-                                        .background(F1DarkGray)
-                                        .border(1.dp, F1MidGray, CircleShape),
+                                        .background(AppColors.surface)
+                                        .border(1.dp, AppColors.outline, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(Icons.Default.PhotoCamera, contentDescription = null,
-                                        tint = F1White, modifier = Modifier.size(16.dp))
+                                        tint = AppColors.onBackground, modifier = Modifier.size(16.dp))
                                 }
                             }
                             Spacer(Modifier.height(10.dp))
-                            Text(profile.displayName, color = F1White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                            Text(profile.email, color = F1LightGray, fontSize = 12.sp)
+                            Text(profile.displayName, color = AppColors.onBackground, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            Text(profile.email, color = AppColors.onSurfaceVariant, fontSize = 12.sp)
                             Spacer(Modifier.height(6.dp))
                             if (profile.favouriteTeam.isNotEmpty()) {
-                                Surface(shape = RoundedCornerShape(6.dp), color = F1Red.copy(alpha = 0.15f)) {
+                                Surface(shape = RoundedCornerShape(6.dp), color = AppColors.primary.copy(alpha = 0.15f)) {
                                     Text(
                                         "${profile.favouriteTeam} fan",
-                                        color = F1Red,
+                                        color = AppColors.primary,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
@@ -240,7 +251,6 @@ fun ProfileContent(vm: ProfileViewModel) {
                         }
                     }
 
-                    // Stats grid
                     item {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             StatBox("Races", profile.racesWatched.toString(), modifier = Modifier.weight(1f))
@@ -249,7 +259,12 @@ fun ProfileContent(vm: ProfileViewModel) {
                         }
                     }
 
-                    // Settings
+                    // Appearance section
+                    item { SectionLabel("Appearance") }
+                    item {
+                        ThemeToggleRow()
+                    }
+
                     item { SectionLabel("Settings") }
 
                     item {
@@ -268,48 +283,46 @@ fun ProfileContent(vm: ProfileViewModel) {
                     }
                     item {
                         SettingRow(icon = Icons.Default.Delete, title = "Delete account",
-                            subtitle = "Permanently remove all data", iconColor = F1Red) {
+                            subtitle = "Permanently remove all data", iconColor = Color(0xFFFF5252)) {
                             showDeleteDialog = true
                         }
                     }
                     item { Spacer(Modifier.height(80.dp)) }
                 }
 
-                // Edit dialog
                 if (showEditDialog) {
                     EditProfileDialog(profile.displayName, profile.favouriteDriver, profile.favouriteTeam,
                         profile.notificationsEnabled,
                         onDismiss = { showEditDialog = false },
                         onSave = { name, driver, team, notif ->
                             vm.updateProfile(name, driver, team, notif)
+                            ThemeState.favouriteTeam = team
                             showEditDialog = false
                         }
                     )
                 }
 
-                // Delete dialog
                 if (showDeleteDialog) {
                     AlertDialog(
                         onDismissRequest = { showDeleteDialog = false },
-                        title = { Text("Delete Account", color = F1White) },
-                        text = { Text("This will permanently delete your account and all data.", color = F1LightGray) },
+                        title = { Text("Delete Account", color = AppColors.onBackground) },
+                        text = { Text("This will permanently delete your account and all data.", color = AppColors.onSurfaceVariant) },
                         confirmButton = {
                             TextButton(onClick = { vm.deleteAccount(); showDeleteDialog = false }) {
-                                Text("Delete", color = F1Red)
+                                Text("Delete", color = Color(0xFFFF5252))
                             }
                         },
                         dismissButton = {
                             TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
                         },
-                        containerColor = F1DarkGray
+                        containerColor = AppColors.surface
                     )
                 }
 
-                // Photo options
                 if (showPhotoOptions) {
                     AlertDialog(
                         onDismissRequest = { showPhotoOptions = false },
-                        title = { Text("Change Photo", color = F1White) },
+                        title = { Text("Change Photo", color = AppColors.onBackground) },
                         text = {
                             Column {
                                 TextButton(onClick = {
@@ -318,18 +331,18 @@ fun ProfileContent(vm: ProfileViewModel) {
                                     val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
                                     cameraUri = uri
                                     cameraLauncher.launch(uri)
-                                }) { Text("📷  Take Photo", color = F1White) }
+                                }) { Text("📷  Take Photo", color = AppColors.onBackground) }
                                 TextButton(onClick = {
                                     showPhotoOptions = false
                                     galleryLauncher.launch("image/*")
-                                }) { Text("🖼️  Choose from Gallery", color = F1White) }
+                                }) { Text("🖼️  Choose from Gallery", color = AppColors.onBackground) }
                             }
                         },
                         confirmButton = {},
                         dismissButton = {
                             TextButton(onClick = { showPhotoOptions = false }) { Text("Cancel") }
                         },
-                        containerColor = F1DarkGray
+                        containerColor = AppColors.surface
                     )
                 }
             }
@@ -337,12 +350,60 @@ fun ProfileContent(vm: ProfileViewModel) {
     }
 }
 
+// ---- Light/Dark theme toggle ----
+@Composable
+fun ThemeToggleRow() {
+    var isDark by remember { mutableStateOf(ThemeState.isDarkMode) }
+
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = AppColors.surface,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = AppColors.primary.copy(alpha = 0.15f),
+                modifier = Modifier.size(36.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        if (isDark) Icons.Default.DarkMode else Icons.Default.LightMode,
+                        contentDescription = null,
+                        tint = AppColors.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Dark Mode", color = AppColors.onBackground, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(if (isDark) "Currently dark" else "Currently light", color = AppColors.onSurfaceVariant, fontSize = 11.sp)
+            }
+            Switch(
+                checked = isDark,
+                onCheckedChange = {
+                    isDark = it
+                    ThemeState.isDarkMode = it
+                },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = AppColors.primary,
+                    checkedTrackColor = AppColors.primary.copy(alpha = 0.3f)
+                )
+            )
+        }
+    }
+}
+
 @Composable
 fun StatBox(label: String, value: String, modifier: Modifier = Modifier) {
-    Surface(shape = RoundedCornerShape(10.dp), color = F1DarkGray, modifier = modifier) {
+    Surface(shape = RoundedCornerShape(10.dp), color = AppColors.surface, modifier = modifier) {
         Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(value, color = F1White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            Text(label, color = F1LightGray, fontSize = 10.sp)
+            Text(value, color = AppColors.onBackground, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(label, color = AppColors.onSurfaceVariant, fontSize = 10.sp)
         }
     }
 }
@@ -352,12 +413,13 @@ fun SettingRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
-    iconColor: Color = F1LightGray,
+    iconColor: Color = Color.Unspecified,
     onClick: () -> Unit
 ) {
+    val resolvedIconColor = if (iconColor == Color.Unspecified) AppColors.onSurfaceVariant else iconColor
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = F1DarkGray,
+        color = AppColors.surface,
         modifier = Modifier.fillMaxWidth().clickable { onClick() }
     ) {
         Row(
@@ -366,19 +428,19 @@ fun SettingRow(
         ) {
             Surface(
                 shape = RoundedCornerShape(8.dp),
-                color = iconColor.copy(alpha = 0.15f),
+                color = resolvedIconColor.copy(alpha = 0.15f),
                 modifier = Modifier.size(36.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(20.dp))
+                    Icon(icon, contentDescription = null, tint = resolvedIconColor, modifier = Modifier.size(20.dp))
                 }
             }
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, color = F1White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                Text(subtitle, color = F1LightGray, fontSize = 11.sp)
+                Text(title, color = AppColors.onBackground, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(subtitle, color = AppColors.onSurfaceVariant, fontSize = 11.sp)
             }
-            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = F1MidGray)
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = AppColors.outline)
         }
     }
 }
@@ -396,43 +458,109 @@ fun EditProfileDialog(
     var driver by remember { mutableStateOf(initialDriver) }
     var team by remember { mutableStateOf(initialTeam) }
     var notif by remember { mutableStateOf(initialNotif) }
+    var showTeamPicker by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Edit Profile", color = F1White) },
+        title = { Text("Edit Profile", color = AppColors.onBackground) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(value = name, onValueChange = { name = it },
                     label = { Text("Display Name") }, colors = authFieldColors(), modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = driver, onValueChange = { driver = it },
                     label = { Text("Favourite Driver (e.g. VER)") }, colors = authFieldColors(), modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = team, onValueChange = { team = it },
-                    label = { Text("Favourite Team") }, colors = authFieldColors(), modifier = Modifier.fillMaxWidth())
+
+                // Team picker - drives app accent color
+                Text("Favourite Team", color = AppColors.onSurfaceVariant, fontSize = 12.sp)
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = AppColors.surfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showTeamPicker = true }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clip(CircleShape)
+                                .background(resolveTeamAccent(team))
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            team.ifEmpty { "Select a team" },
+                            color = AppColors.onBackground,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = AppColors.onSurfaceVariant)
+                    }
+                }
+
+                if (showTeamPicker) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(allTeams.size) { index ->
+                            val t = allTeams[index]
+                            val color = resolveTeamAccent(t)
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (t == team) color.copy(alpha = 0.25f) else AppColors.surfaceVariant,
+                                modifier = Modifier.clickable {
+                                    team = t
+                                    showTeamPicker = false
+                                }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(10.dp)
+                                            .clip(CircleShape)
+                                            .background(color)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(t, color = AppColors.onBackground, fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Race Notifications", color = F1White, modifier = Modifier.weight(1f))
+                    Text("Race Notifications", color = AppColors.onBackground, modifier = Modifier.weight(1f))
                     Switch(checked = notif, onCheckedChange = { notif = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = F1Red, checkedTrackColor = F1Red.copy(alpha = 0.3f)))
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = resolveTeamAccent(team),
+                            checkedTrackColor = resolveTeamAccent(team).copy(alpha = 0.3f)
+                        ))
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = { onSave(name, driver, team, notif) }) {
-                Text("Save", color = F1Red, fontWeight = FontWeight.Bold)
+                Text("Save", color = resolveTeamAccent(team), fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel", color = F1LightGray) }
+            TextButton(onClick = onDismiss) { Text("Cancel", color = AppColors.onSurfaceVariant) }
         },
-        containerColor = F1DarkGray
+        containerColor = AppColors.surface
     )
 }
 
 @Composable
 fun authFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = F1Red,
-    unfocusedBorderColor = F1MidGray,
-    focusedLabelColor = F1Red,
-    cursorColor = F1Red,
-    focusedTextColor = F1White,
-    unfocusedTextColor = F1White
+    focusedBorderColor = AppColors.primary,
+    unfocusedBorderColor = AppColors.outline,
+    focusedLabelColor = AppColors.primary,
+    cursorColor = AppColors.primary,
+    focusedTextColor = AppColors.onBackground,
+    unfocusedTextColor = AppColors.onBackground
 )

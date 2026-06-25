@@ -8,7 +8,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -21,6 +20,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
+import com.boxbox.app.data.repository.BoxBoxRepository
 import com.boxbox.app.notifications.createNotificationChannels
 import com.boxbox.app.ui.home.HomeScreen
 import com.boxbox.app.ui.live.LiveScreen
@@ -30,6 +30,7 @@ import com.boxbox.app.ui.standings.StandingsScreen
 import com.boxbox.app.ui.theme.*
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberPermissionState
+import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     object Home : Screen("home", "Home", Icons.Default.Home)
@@ -53,24 +54,44 @@ class MainActivity : ComponentActivity() {
         createNotificationChannels(this)
 
         setContent {
+            // Load favourite team into the global ThemeState as early as possible,
+            // so the whole app (including bottom nav + splash-adjacent screens) is
+            // already colored correctly on first frame.
+            val coroutineScope = rememberCoroutineScope()
+            LaunchedEffect(Unit) {
+                coroutineScope.launch {
+                    try {
+                        val repo = BoxBoxRepository()
+                        val uid = repo.getCurrentUser()?.uid
+                        if (uid != null) {
+                            val profile = repo.getUserProfile(uid)
+                            if (profile != null && profile.favouriteTeam.isNotEmpty()) {
+                                ThemeState.favouriteTeam = profile.favouriteTeam
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // Stay on default theme if this fails (e.g. offline on first launch)
+                    }
+                }
+            }
+
             BoxBoxTheme {
-                // Request notification permission on Android 13+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     val perm = rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
                     LaunchedEffect(Unit) { perm.launchPermissionRequest() }
                 }
-                MainAppLayout()
+                BoxBoxAppFunction()
             }
         }
     }
 }
 
 @Composable
-fun MainAppLayout() {
+fun BoxBoxAppFunction() {
     val navController = rememberNavController()
 
     Scaffold(
-        containerColor = F1Black,
+        containerColor = AppColors.background,
         bottomBar = {
             BoxBoxBottomNav(navController)
         }
@@ -95,10 +116,10 @@ fun BoxBoxBottomNav(navController: androidx.navigation.NavHostController) {
     val currentDestination = navBackStackEntry?.destination
 
     NavigationBar(
-        containerColor = F1Black,
+        containerColor = AppColors.background,
         tonalElevation = 0.dp,
         modifier = Modifier
-            .background(F1Black)
+            .background(AppColors.background)
             .navigationBarsPadding()
     ) {
         bottomNavItems.forEach { screen ->
@@ -121,11 +142,11 @@ fun BoxBoxBottomNav(navController: androidx.navigation.NavHostController) {
                 },
                 label = { Text(screen.label, fontSize = 10.sp) },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = F1Red,
-                    selectedTextColor = F1Red,
-                    unselectedIconColor = F1LightGray,
-                    unselectedTextColor = F1LightGray,
-                    indicatorColor = F1Red.copy(alpha = 0.1f)
+                    selectedIconColor = AppColors.primary,
+                    selectedTextColor = AppColors.primary,
+                    unselectedIconColor = AppColors.onSurfaceVariant,
+                    unselectedTextColor = AppColors.onSurfaceVariant,
+                    indicatorColor = AppColors.primary.copy(alpha = 0.1f)
                 )
             )
         }
