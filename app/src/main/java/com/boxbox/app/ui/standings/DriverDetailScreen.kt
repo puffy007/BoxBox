@@ -2,8 +2,10 @@ package com.boxbox.app.ui.standings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
@@ -11,8 +13,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -21,7 +26,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.boxbox.app.data.model.DriverSeasonSummary
 import com.boxbox.app.data.model.UiState
+import com.boxbox.app.data.repository.normalizeForMatch
 import com.boxbox.app.ui.*
 import com.boxbox.app.ui.theme.*
 import com.boxbox.app.viewmodel.DriverDetailData
@@ -79,34 +86,59 @@ fun DriverDetailContent(data: DriverDetailData, onBack: () -> Unit) {
     val teamColor = getTeamColor(teamName)
     val driver = data.standing.Driver
     val openF1 = data.openF1Driver
-    val photoUrl = openF1?.headshot_url?.takeIf { it.isNotEmpty() }
+
+    val surnameKey = normalizeForMatch(driver.familyName)
+    val photoUrl = driverHighResPhotos[surnameKey]
+        ?: driverHighResPhotos.entries.firstOrNull { (key, _) ->
+            surnameKey.contains(key) || key.contains(surnameKey)
+        }?.value
+        ?: openF1?.headshot_url?.takeIf { it.isNotEmpty() }
+
     val carNumber = openF1?.driver_number?.takeIf { it != 0 }?.toString()
         ?: data.standing.Driver.permanentNumber.ifEmpty { "—" }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
         // ---- Hero header: team-colored gradient, giant number watermark, photo, name ----
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(teamColor, teamColor.copy(alpha = 0.75f))
+                        colors = listOf(
+                            lightenColor(teamColor, 0.18f),
+                            teamColor,
+                            darkenColor(teamColor, 0.45f)
+                        )
                     )
                 )
         ) {
-            // Giant car-number watermark behind the photo
             Text(
                 carNumber,
-                color = Color.White.copy(alpha = 0.16f),
-                fontSize = 220.sp,
+                style = androidx.compose.ui.text.TextStyle(
+                    color = Color.White.copy(alpha = 0.35f),
+                    fontSize = 210.sp,
+                    fontWeight = FontWeight.Bold,
+                    drawStyle = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f)
+                ),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .offset(y = (-10).dp)
+            )
+            Text(
+                carNumber,
+                color = Color.White.copy(alpha = 0.18f),
+                fontSize = 210.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .offset(y = 8.dp)
+                    .offset(y = (-10).dp)
             )
 
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Top bar: back only
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -120,19 +152,52 @@ fun DriverDetailContent(data: DriverDetailData, onBack: () -> Unit) {
                     }
                 }
 
-                // Driver photo, full width, fills the hero area
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(340.dp),
-                    contentAlignment = Alignment.BottomCenter
+                        .height(280.dp)
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.75f)
+                            .fillMaxHeight(0.85f)
+                            .align(Alignment.Center)
+                            .background(
+                                Brush.radialGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = 0.18f),
+                                        Color.Transparent
+                                    )
+                                )
+                            )
+                    )
+
                     if (!photoUrl.isNullOrEmpty()) {
                         AsyncImage(
                             model = photoUrl,
                             contentDescription = driver.familyName,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
+                            modifier = Modifier
+                                .fillMaxWidth(0.62f)
+                                .fillMaxHeight()
+                                .align(Alignment.Center)
+                                .graphicsLayer(alpha = 0.99f)
+                                .drawWithCache {
+                                    val fadeBrush = Brush.verticalGradient(
+                                        colorStops = arrayOf(
+                                            0.0f to Color.Black,
+                                            0.6f to Color.Black,
+                                            1.0f to Color.Transparent
+                                        ),
+                                        startY = 0f,
+                                        endY = size.height
+                                    )
+                                    onDrawWithContent {
+                                        drawContent()
+                                        drawRect(brush = fadeBrush, blendMode = BlendMode.DstIn)
+                                    }
+                                },
+                            contentScale = ContentScale.Crop,
+                            alignment = Alignment.TopCenter
                         )
                     } else {
                         Box(
@@ -153,7 +218,6 @@ fun DriverDetailContent(data: DriverDetailData, onBack: () -> Unit) {
                     }
                 }
 
-                // Name block: script-style first name, bold surname
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -180,10 +244,29 @@ fun DriverDetailContent(data: DriverDetailData, onBack: () -> Unit) {
 
                     Spacer(Modifier.height(10.dp))
 
-                    // Country | Team | Number row
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        val countryInfo = countryInfoFor(driver.nationality)
+                        countryInfo?.let { info ->
+                            Box(
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                AsyncImage(
+                                    model = flagUrlFor(info.isoCode),
+                                    contentDescription = info.countryName,
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                            Spacer(Modifier.width(6.dp))
+                        }
                         Text(
-                            driver.nationality.ifEmpty { "—" },
+                            countryInfo?.countryName ?: driver.nationality.ifEmpty { "—" },
                             color = Color.White.copy(alpha = 0.9f),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
@@ -226,40 +309,84 @@ fun DriverDetailContent(data: DriverDetailData, onBack: () -> Unit) {
 fun StatisticsTab(data: DriverDetailData, teamColor: Color, carNumber: String) {
     val driver = data.standing.Driver
     val teamName = data.standing.Constructors.firstOrNull()?.name ?: ""
+    val summary = data.seasonSummary
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            DetailStatCard("Position", "P${data.standing.position}", teamColor, Modifier.weight(1f))
-            DetailStatCard("Points", data.standing.points, teamColor, Modifier.weight(1f))
-            DetailStatCard("Wins", data.standing.wins, teamColor, Modifier.weight(1f))
+        // Two-column detailed breakdown, in the official app's stat-sheet style:
+        // muted gray label above, big bold number below, divider lines between groups.
+        // Every row pairs two real values - no row is left with an empty second column.
+        StatRow("Season Position", "P${data.standing.position}", "Season Points", data.standing.points)
+        Divider(color = AppColors.outline, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 14.dp))
+
+        if (summary != null) {
+            StatRow("Wins", data.standing.wins, "Races Entered", summary.racesEntered.toString())
+            Spacer(Modifier.height(18.dp))
+            StatRow("Podiums", summary.podiums.toString(), "Win Rate", winRate(summary))
+            Divider(color = AppColors.outline, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 14.dp))
+            StatRow(
+                "Code",
+                data.openF1Driver?.name_acronym?.ifEmpty { null } ?: driver.code.ifEmpty { "—" },
+                "",
+                ""
+            )
+        } else {
+            // Season summary requires an extra API call per driver and may still be
+            // loading, or could fail (offline, rate limit) - show a lightweight
+            // placeholder rather than blocking the rest of the screen on it.
+            StatRow("Wins", data.standing.wins, "", "")
+            Text(
+                "Loading season results…",
+                color = AppColors.onSurfaceVariant,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            Divider(color = AppColors.outline, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 14.dp))
+            StatRow(
+                "Code",
+                data.openF1Driver?.name_acronym?.ifEmpty { null } ?: driver.code.ifEmpty { "—" },
+                "",
+                ""
+            )
         }
 
-        Spacer(Modifier.height(12.dp))
-
-        Surface(shape = RoundedCornerShape(14.dp), color = AppColors.surface, modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                DetailInfoRow("Car number", "#$carNumber")
-                DetailInfoRow("Nationality", driver.nationality)
-                DetailInfoRow("Team", teamName)
-                DetailInfoRow(
-                    "Code",
-                    data.openF1Driver?.name_acronym?.ifEmpty { null } ?: driver.code.ifEmpty { "—" },
-                    isLast = true
-                )
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(20.dp))
         Text(
-            "Live data (number, code, photo) comes from OpenF1's latest session. Standings and points come from Jolpica.",
+            "Position, points, and wins come from Jolpica's championship standings. Races entered, podiums, and win rate are computed from Jolpica's per-race results for this season. Car number, code, and photo come from OpenF1's latest session.",
             color = AppColors.onSurfaceVariant,
             fontSize = 11.sp,
+            lineHeight = 16.sp,
             modifier = Modifier.padding(horizontal = 4.dp)
         )
+
+        Spacer(Modifier.height(24.dp))
+    }
+}
+
+private fun winRate(summary: DriverSeasonSummary): String {
+    if (summary.racesEntered == 0) return "—"
+    val pct = (summary.wins.toDouble() / summary.racesEntered.toDouble()) * 100
+    return "${pct.toInt()}%"
+}
+
+@Composable
+fun StatRow(label1: String, value1: String, label2: String, value2: String) {
+    Row(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label1, color = AppColors.onSurfaceVariant, fontSize = 13.sp)
+            Spacer(Modifier.height(6.dp))
+            Text(value1, color = AppColors.onBackground, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            if (label2.isNotEmpty()) {
+                Text(label2, color = AppColors.onSurfaceVariant, fontSize = 13.sp)
+                Spacer(Modifier.height(6.dp))
+                Text(value2, color = AppColors.onBackground, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            }
+        }
     }
 }
 

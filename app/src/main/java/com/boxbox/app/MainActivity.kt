@@ -94,7 +94,6 @@ fun BoxBoxAppFunction() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // Hide bottom bar on detail screens for a more native, focused feel
     val showBottomBar = currentRoute == null ||
             bottomNavItems.any { it.route == currentRoute }
 
@@ -132,11 +131,7 @@ fun BoxBoxAppFunction() {
                 TeamDetailScreen(
                     constructorId = teamId,
                     onBack = { navController.popBackStack() },
-                    onDriverClick = { driver ->
-                        // Navigate using the driver's surname-derived id isn't reliable from OpenF1 data alone,
-                        // so for cross-navigation from team -> driver we just pop back; full driver detail
-                        // is reached from the Standings list directly.
-                    }
+                    onDriverClick = { driverId -> navController.navigate("driver_detail/$driverId") }
                 )
             }
         }

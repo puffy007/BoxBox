@@ -25,6 +25,18 @@ class StandingsViewModel(
     private val _driverPhotosByName = MutableStateFlow<Map<String, Driver>>(emptyMap())
     val driverPhotosByName: StateFlow<Map<String, Driver>> = _driverPhotosByName
 
+    // Which tab (0 = Drivers, 1 = Constructors) was selected. Lives here instead of as
+    // a local remember{} in the composable so that navigating to a Driver/Team detail
+    // screen and pressing back returns to the same tab the user was on, rather than
+    // resetting to Drivers every time (the composable is recreated on that round trip,
+    // but this ViewModel survives as long as Standings stays in the nav back stack).
+    private val _selectedTab = MutableStateFlow(0)
+    val selectedTab: StateFlow<Int> = _selectedTab
+
+    fun selectTab(index: Int) {
+        _selectedTab.value = index
+    }
+
     init {
         loadStandings()
         loadOpenF1DriverPhotos()

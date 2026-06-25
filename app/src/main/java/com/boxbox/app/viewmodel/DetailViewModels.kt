@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.boxbox.app.data.model.*
 import com.boxbox.app.data.repository.BoxBoxRepository
 import com.boxbox.app.data.repository.findDriverByName
+import com.boxbox.app.data.repository.getDriverSeasonSummary
 import com.boxbox.app.data.repository.normalizeForMatch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,7 +13,8 @@ import kotlinx.coroutines.launch
 
 data class DriverDetailData(
     val standing: DriverStanding,
-    val openF1Driver: Driver?
+    val openF1Driver: Driver?,
+    val seasonSummary: DriverSeasonSummary? = null
 )
 
 class DriverDetailViewModel(
@@ -35,7 +37,13 @@ class DriverDetailViewModel(
                 val openF1Driver = repository.findDriverByName(
                     standing.Driver.familyName, standing.Driver.givenName
                 )
-                _state.value = UiState.Success(DriverDetailData(standing, openF1Driver))
+                // Show the core data immediately, then fill in season summary once it
+                // resolves - races/wins/podiums require an extra API call per driver,
+                // so we don't want to block the whole screen on it.
+                _state.value = UiState.Success(DriverDetailData(standing, openF1Driver, null))
+
+                val summary = repository.getDriverSeasonSummary(driverId)
+                _state.value = UiState.Success(DriverDetailData(standing, openF1Driver, summary))
             } catch (e: Exception) {
                 _state.value = UiState.Error(e.message ?: "Error loading driver")
             }
@@ -45,7 +53,12 @@ class DriverDetailViewModel(
 
 data class TeamDetailData(
     val standing: ConstructorStanding,
-    val drivers: List<Driver>
+    val drivers: List<TeamLineupDriver>
+)
+
+data class TeamLineupDriver(
+    val driverId: String,
+    val driver: Driver
 )
 
 class TeamDetailViewModel(
@@ -66,11 +79,6 @@ class TeamDetailViewModel(
                     return@launch
                 }
 
-                // Find this team's drivers via Jolpica's driver standings, not by trying
-                // to string-match OpenF1's team_name (which can lag behind a team's current
-                // season name - e.g. "RB" vs "Racing Bulls" - and caused the driver lineup
-                // to come back empty for that team). Jolpica's own Constructors list per
-                // driver is reliable for "who races for whom this season".
                 val driverStandings = repository.getDriverStandings()
                 val teamKey = normalizeForMatch(standing.Constructor.constructorId)
                 val teamNameKey = normalizeForMatch(standing.Constructor.name)
@@ -82,12 +90,8 @@ class TeamDetailViewModel(
                     }
                 }
 
-                // For each Jolpica driver on this team, resolve an OpenF1 record (for the
-                // photo/number/code) by name. If OpenF1 has nothing for a given driver,
-                // still show them using Jolpica's name so the lineup is never empty for a
-                // team that Jolpica confirms has drivers.
                 val drivers = teamDriverEntries.map { ds ->
-                    repository.findDriverByName(ds.Driver.familyName, ds.Driver.givenName)
+                    val openF1Driver = repository.findDriverByName(ds.Driver.familyName, ds.Driver.givenName)
                         ?: Driver(
                             driver_number = ds.Driver.permanentNumber.toIntOrNull() ?: 0,
                             broadcast_name = "${ds.Driver.givenName.take(1)} ${ds.Driver.familyName}".uppercase(),
@@ -99,6 +103,7 @@ class TeamDetailViewModel(
                             headshot_url = "",
                             session_key = 0
                         )
+                    TeamLineupDriver(driverId = ds.Driver.driverId, driver = openF1Driver)
                 }
 
                 _state.value = UiState.Success(TeamDetailData(standing, drivers))

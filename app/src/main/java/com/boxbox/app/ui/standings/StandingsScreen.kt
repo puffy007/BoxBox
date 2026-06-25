@@ -35,7 +35,7 @@ fun StandingsScreen(
     val driverState by vm.driverStandings.collectAsState()
     val constructorState by vm.constructorStandings.collectAsState()
     val driverPhotosByName by vm.driverPhotosByName.collectAsState()
-    var selectedTab by remember { mutableStateOf(0) }
+    val selectedTab by vm.selectedTab.collectAsState()
 
     Column(
         modifier = Modifier
@@ -55,7 +55,7 @@ fun StandingsScreen(
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .clickableNoRipple { selectedTab = index }
+                        .clickableNoRipple { vm.selectTab(index) }
                         .padding(vertical = 14.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
