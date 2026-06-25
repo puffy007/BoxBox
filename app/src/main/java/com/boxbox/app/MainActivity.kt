@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import com.boxbox.app.data.repository.BoxBoxRepository
 import com.boxbox.app.notifications.createNotificationChannels
@@ -26,7 +27,9 @@ import com.boxbox.app.ui.home.HomeScreen
 import com.boxbox.app.ui.live.LiveScreen
 import com.boxbox.app.ui.profile.ProfileScreen
 import com.boxbox.app.ui.results.ResultsScreen
+import com.boxbox.app.ui.standings.DriverDetailScreen
 import com.boxbox.app.ui.standings.StandingsScreen
+import com.boxbox.app.ui.standings.TeamDetailScreen
 import com.boxbox.app.ui.theme.*
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberPermissionState
@@ -44,6 +47,10 @@ val bottomNavItems = listOf(
     Screen.Home, Screen.Live, Screen.Standings, Screen.Results, Screen.Profile
 )
 
+// Detail routes (not in bottom nav, pushed on top)
+const val DRIVER_DETAIL_ROUTE = "driver_detail/{driverId}"
+const val TEAM_DETAIL_ROUTE = "team_detail/{teamId}"
+
 class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalPermissionsApi::class)
@@ -54,9 +61,6 @@ class MainActivity : ComponentActivity() {
         createNotificationChannels(this)
 
         setContent {
-            // Load favourite team into the global ThemeState as early as possible,
-            // so the whole app (including bottom nav + splash-adjacent screens) is
-            // already colored correctly on first frame.
             val coroutineScope = rememberCoroutineScope()
             LaunchedEffect(Unit) {
                 coroutineScope.launch {
@@ -69,9 +73,7 @@ class MainActivity : ComponentActivity() {
                                 ThemeState.favouriteTeam = profile.favouriteTeam
                             }
                         }
-                    } catch (e: Exception) {
-                        // Stay on default theme if this fails (e.g. offline on first launch)
-                    }
+                    } catch (e: Exception) { /* stay on default theme */ }
                 }
             }
 
@@ -89,29 +91,60 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun BoxBoxAppFunction() {
     val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    // Hide bottom bar on detail screens for a more native, focused feel
+    val showBottomBar = currentRoute == null ||
+            bottomNavItems.any { it.route == currentRoute }
 
     Scaffold(
         containerColor = AppColors.background,
         bottomBar = {
-            BoxBoxBottomNav(navController)
+            if (showBottomBar) BoxBoxBottomNav(navController)
         }
     ) { innerPadding ->
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(if (showBottomBar) innerPadding else PaddingValues(0.dp))
         ) {
             composable(Screen.Home.route) { HomeScreen() }
             composable(Screen.Live.route) { LiveScreen() }
-            composable(Screen.Standings.route) { StandingsScreen() }
+            composable(Screen.Standings.route) {
+                StandingsScreen(
+                    onDriverClick = { driverId -> navController.navigate("driver_detail/$driverId") },
+                    onTeamClick = { teamId -> navController.navigate("team_detail/$teamId") }
+                )
+            }
             composable(Screen.Results.route) { ResultsScreen() }
             composable(Screen.Profile.route) { ProfileScreen() }
+
+            composable(DRIVER_DETAIL_ROUTE) { backStackEntry ->
+                val driverId = backStackEntry.arguments?.getString("driverId") ?: return@composable
+                DriverDetailScreen(
+                    driverId = driverId,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(TEAM_DETAIL_ROUTE) { backStackEntry ->
+                val teamId = backStackEntry.arguments?.getString("teamId") ?: return@composable
+                TeamDetailScreen(
+                    constructorId = teamId,
+                    onBack = { navController.popBackStack() },
+                    onDriverClick = { driver ->
+                        // Navigate using the driver's surname-derived id isn't reliable from OpenF1 data alone,
+                        // so for cross-navigation from team -> driver we just pop back; full driver detail
+                        // is reached from the Standings list directly.
+                    }
+                )
+            }
         }
     }
 }
 
 @Composable
-fun BoxBoxBottomNav(navController: androidx.navigation.NavHostController) {
+fun BoxBoxBottomNav(navController: NavHostController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 

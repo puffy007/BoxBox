@@ -3,6 +3,7 @@ package com.boxbox.app.ui.profile
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,11 +36,15 @@ import com.boxbox.app.viewmodel.AuthState
 import com.boxbox.app.viewmodel.ProfileViewModel
 import java.io.File
 
-// All F1 teams for the picker
+// Full 2026 F1 grid, matching the team keys in Theme.kt's teamAccentColors map.
+// "Racing Bulls" replaces "RB" as the current-season name; "Audi" replaces
+// "Kick Sauber"; "Cadillac" is the new 2026 entrant. Keeping this list in sync
+// with teamAccentColors is what makes every option here actually change the
+// app's accent color when selected.
 val allTeams = listOf(
     "Red Bull Racing", "Ferrari", "McLaren", "Mercedes",
-    "Aston Martin", "Alpine", "Williams", "RB",
-    "Kick Sauber", "Haas"
+    "Aston Martin", "Alpine", "Williams", "Racing Bulls",
+    "Audi", "Haas", "Cadillac"
 )
 
 @Composable
@@ -264,6 +269,17 @@ fun ProfileContent(vm: ProfileViewModel) {
                     item {
                         ThemeToggleRow()
                     }
+                    item {
+                        TeamThemeRow(currentTeam = profile.favouriteTeam) { newTeam ->
+                            vm.updateProfile(
+                                profile.displayName,
+                                profile.favouriteDriver,
+                                newTeam,
+                                profile.notificationsEnabled
+                            )
+                            ThemeState.favouriteTeam = newTeam
+                        }
+                    }
 
                     item { SectionLabel("Settings") }
 
@@ -398,6 +414,92 @@ fun ThemeToggleRow() {
     }
 }
 
+// ---- Team theme picker - the full grid, each swatch shows its real accent color ----
+@Composable
+fun TeamThemeRow(currentTeam: String, onTeamSelected: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = AppColors.surface,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = resolveTeamAccent(currentTeam).copy(alpha = 0.18f),
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clip(CircleShape)
+                                .background(resolveTeamAccent(currentTeam))
+                        )
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Team Theme", color = AppColors.onBackground, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        currentTeam.ifEmpty { "Default (F1 Red)" },
+                        color = AppColors.onSurfaceVariant,
+                        fontSize = 11.sp
+                    )
+                }
+                Icon(
+                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    tint = AppColors.onSurfaceVariant
+                )
+            }
+
+            if (expanded) {
+                Spacer(Modifier.height(12.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(allTeams.size) { index ->
+                        val team = allTeams[index]
+                        val color = resolveTeamAccent(team)
+                        val isSelected = team.equals(currentTeam, ignoreCase = true)
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isSelected) color.copy(alpha = 0.22f) else AppColors.surfaceVariant,
+                            border = if (isSelected) BorderStroke(1.5.dp, color) else null,
+                            modifier = Modifier.clickable { onTeamSelected(team) }
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(CircleShape)
+                                        .background(color)
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    team,
+                                    color = AppColors.onBackground,
+                                    fontSize = 10.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun StatBox(label: String, value: String, modifier: Modifier = Modifier) {
     Surface(shape = RoundedCornerShape(10.dp), color = AppColors.surface, modifier = modifier) {
@@ -456,9 +558,7 @@ fun EditProfileDialog(
 ) {
     var name by remember { mutableStateOf(initialName) }
     var driver by remember { mutableStateOf(initialDriver) }
-    var team by remember { mutableStateOf(initialTeam) }
     var notif by remember { mutableStateOf(initialNotif) }
-    var showTeamPicker by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -470,82 +570,19 @@ fun EditProfileDialog(
                 OutlinedTextField(value = driver, onValueChange = { driver = it },
                     label = { Text("Favourite Driver (e.g. VER)") }, colors = authFieldColors(), modifier = Modifier.fillMaxWidth())
 
-                // Team picker - drives app accent color
-                Text("Favourite Team", color = AppColors.onSurfaceVariant, fontSize = 12.sp)
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = AppColors.surfaceVariant,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showTeamPicker = true }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .clip(CircleShape)
-                                .background(resolveTeamAccent(team))
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            team.ifEmpty { "Select a team" },
-                            color = AppColors.onBackground,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = AppColors.onSurfaceVariant)
-                    }
-                }
-
-                if (showTeamPicker) {
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        items(allTeams.size) { index ->
-                            val t = allTeams[index]
-                            val color = resolveTeamAccent(t)
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (t == team) color.copy(alpha = 0.25f) else AppColors.surfaceVariant,
-                                modifier = Modifier.clickable {
-                                    team = t
-                                    showTeamPicker = false
-                                }
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(10.dp)
-                                            .clip(CircleShape)
-                                            .background(color)
-                                    )
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(t, color = AppColors.onBackground, fontSize = 11.sp)
-                                }
-                            }
-                        }
-                    }
-                }
-
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Race Notifications", color = AppColors.onBackground, modifier = Modifier.weight(1f))
                     Switch(checked = notif, onCheckedChange = { notif = it },
                         colors = SwitchDefaults.colors(
-                            checkedThumbColor = resolveTeamAccent(team),
-                            checkedTrackColor = resolveTeamAccent(team).copy(alpha = 0.3f)
+                            checkedThumbColor = AppColors.primary,
+                            checkedTrackColor = AppColors.primary.copy(alpha = 0.3f)
                         ))
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(name, driver, team, notif) }) {
-                Text("Save", color = resolveTeamAccent(team), fontWeight = FontWeight.Bold)
+            TextButton(onClick = { onSave(name, driver, initialTeam, notif) }) {
+                Text("Save", color = AppColors.primary, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {

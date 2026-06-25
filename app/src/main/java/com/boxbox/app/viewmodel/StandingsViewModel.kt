@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boxbox.app.data.model.*
 import com.boxbox.app.data.repository.BoxBoxRepository
+import com.boxbox.app.data.repository.allRecentDriversBySurname
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -18,8 +19,15 @@ class StandingsViewModel(
     private val _constructorStandings = MutableStateFlow<UiState<List<ConstructorStanding>>>(UiState.Loading)
     val constructorStandings: StateFlow<UiState<List<ConstructorStanding>>> = _constructorStandings
 
+    // Surname (accent-normalized) -> OpenF1 Driver, merged across recent sessions
+    // and, if needed, the previous season too. See RepositoryExtensions.kt for why
+    // this is needed instead of a single "latest" session call.
+    private val _driverPhotosByName = MutableStateFlow<Map<String, Driver>>(emptyMap())
+    val driverPhotosByName: StateFlow<Map<String, Driver>> = _driverPhotosByName
+
     init {
         loadStandings()
+        loadOpenF1DriverPhotos()
     }
 
     fun loadStandings() {
@@ -38,6 +46,12 @@ class StandingsViewModel(
             } catch (e: Exception) {
                 _constructorStandings.value = UiState.Error(e.message ?: "Error")
             }
+        }
+    }
+
+    private fun loadOpenF1DriverPhotos() {
+        viewModelScope.launch {
+            _driverPhotosByName.value = repository.allRecentDriversBySurname()
         }
     }
 }

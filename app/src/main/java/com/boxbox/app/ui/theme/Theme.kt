@@ -5,7 +5,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 
-// ---- Team accent colors (same as before, but these are now the PRIMARY app color) ----
+// ---- Team accent colors (these are now the PRIMARY app color) ----
+// Covers the full 2026 grid. Some teams are kept under both their old and new names
+// since Jolpica returns whichever name was current for the requested season:
+//   - Racing Bulls: "RB" (2024-2025) -> "Racing Bulls" (2026+)
+//   - Kick Sauber -> rebranded to "Audi" for 2026
+//   - "Cadillac" is the new 2026 entrant (Perez, Bottas)
 val teamAccentColors = mapOf(
     "Red Bull Racing" to Color(0xFF3671C6),
     "Ferrari" to Color(0xFFE10600),
@@ -14,15 +19,25 @@ val teamAccentColors = mapOf(
     "Aston Martin" to Color(0xFF229971),
     "Alpine" to Color(0xFF0093CC),
     "Williams" to Color(0xFF64C4FF),
+    "Racing Bulls" to Color(0xFF6692FF),
     "RB" to Color(0xFF6692FF),
     "Kick Sauber" to Color(0xFF52E252),
-    "Haas" to Color(0xFFB6BABD)
+    "Audi" to Color(0xFFD40000),
+    "Haas" to Color(0xFFB6BABD),
+    "Cadillac" to Color(0xFF8C8C8C)
 )
 
 val defaultAccent = Color(0xFFE10600) // F1 red default
 
 fun resolveTeamAccent(teamName: String): Color {
     if (teamName.isBlank()) return defaultAccent
+    // Exact match first (case-insensitive) to avoid accidental substring collisions
+    // between unrelated team names - e.g. a loose contains() check can fail to connect
+    // "Racing Bulls" with its own entry depending on key ordering/substrings.
+    teamAccentColors.forEach { (key, color) ->
+        if (key.equals(teamName, ignoreCase = true)) return color
+    }
+    // Fall back to a looser containment check for partial/legacy naming variants.
     teamAccentColors.forEach { (key, color) ->
         if (teamName.contains(key, ignoreCase = true) ||
             key.contains(teamName, ignoreCase = true)) {
@@ -42,13 +57,14 @@ object ThemeState {
 }
 
 // Fixed dark/light neutrals (independent of team)
+// Dark palette matches the official F1 app's signature deep navy look.
 private val DarkNeutrals = NeutralPalette(
-    background = Color(0xFF0F0F0F),
-    surface = Color(0xFF1A1A1A),
-    surfaceVariant = Color(0xFF2A2A2A),
-    onBackground = Color(0xFFE8E8E8),
-    onSurfaceVariant = Color(0xFF888888),
-    outline = Color(0xFF2A2A2A)
+    background = Color(0xFF0A0E1A),
+    surface = Color(0xFF15182A),
+    surfaceVariant = Color(0xFF1F2438),
+    onBackground = Color(0xFFEDEEF2),
+    onSurfaceVariant = Color(0xFF8A8FA3),
+    outline = Color(0xFF252A40)
 )
 
 private val LightNeutrals = NeutralPalette(
@@ -118,9 +134,6 @@ fun BoxBoxTheme(content: @Composable () -> Unit) {
 }
 
 // ---- Backward-compatible accessors used throughout the app ----
-// Instead of hardcoded F1Red / F1Black etc, screens should now read from MaterialTheme.colorScheme
-// But to avoid rewriting every screen at once, expose these as Composable-safe current-theme reads:
-
 object AppColors {
     val primary: Color @Composable get() = MaterialTheme.colorScheme.primary
     val background: Color @Composable get() = MaterialTheme.colorScheme.background
