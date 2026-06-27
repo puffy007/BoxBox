@@ -101,6 +101,7 @@ fun DriverDetailContent(data: DriverDetailData, onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
+            .navigationBarsPadding()
     ) {
         // ---- Hero header: team-colored gradient, giant number watermark, photo, name ----
         Box(

@@ -259,7 +259,13 @@ fun TeamDetailContent(data: TeamDetailData, onBack: () -> Unit, onDriverClick: (
             )
         }
 
-        item { Spacer(Modifier.height(80.dp)) }
+        item {
+            Spacer(
+                Modifier
+                    .height(80.dp)
+                    .navigationBarsPadding()
+            )
+        }
     }
 }
 

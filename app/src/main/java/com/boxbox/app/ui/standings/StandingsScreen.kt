@@ -138,7 +138,7 @@ fun DriverStandingsList(
             DriverStandingRow(standing, photoUrl) { onDriverClick(standing.Driver.driverId) }
             Divider(color = AppColors.outline, thickness = 0.5.dp, modifier = Modifier.padding(start = 16.dp))
         }
-        item { Spacer(Modifier.height(80.dp)) }
+
     }
 }
 
@@ -216,7 +216,7 @@ fun ConstructorStandingsList(standings: List<ConstructorStanding>, onTeamClick: 
             ConstructorStandingRow(standing) { onTeamClick(standing.Constructor.constructorId) }
             Divider(color = AppColors.outline, thickness = 0.5.dp, modifier = Modifier.padding(start = 16.dp))
         }
-        item { Spacer(Modifier.height(80.dp)) }
+
     }
 }
 
@@ -239,13 +239,23 @@ fun ConstructorStandingRow(standing: ConstructorStanding, onClick: () -> Unit) {
             modifier = Modifier.width(40.dp)
         )
 
+        val logoUrl = resolveTeamLogo(standing.Constructor.name)
         Box(
             modifier = Modifier
-                .width(5.dp)
-                .height(32.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(teamColor)
-        )
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(teamColor.copy(alpha = 0.35f)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (logoUrl != null) {
+                AsyncImage(
+                    model = logoUrl,
+                    contentDescription = "${standing.Constructor.name} logo",
+                    modifier = Modifier.size(20.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
+        }
 
         Spacer(Modifier.width(14.dp))
 

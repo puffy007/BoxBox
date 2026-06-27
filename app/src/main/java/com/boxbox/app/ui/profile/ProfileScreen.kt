@@ -69,16 +69,19 @@ fun ProfileScreen(vm: ProfileViewModel = viewModel()) {
         }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = AppColors.background
-    ) { padding ->
-        Box(modifier = Modifier.padding(padding)) {
-            when (authState) {
-                is AuthState.Unauthenticated -> AuthScreen(vm)
-                is AuthState.Authenticated -> ProfileContent(vm)
-            }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(AppColors.background)
+    ) {
+        when (authState) {
+            is AuthState.Unauthenticated -> AuthScreen(vm)
+            is AuthState.Authenticated -> ProfileContent(vm)
         }
+        SnackbarHost(
+            snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 }
 
@@ -382,7 +385,7 @@ fun ThemeToggleRow() {
         ) {
             Surface(
                 shape = RoundedCornerShape(8.dp),
-                color = AppColors.primary.copy(alpha = 0.15f),
+                color = AppColors.primary.copy(alpha = 0.18f),
                 modifier = Modifier.size(36.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -407,7 +410,10 @@ fun ThemeToggleRow() {
                 },
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = AppColors.primary,
-                    checkedTrackColor = AppColors.primary.copy(alpha = 0.3f)
+                    checkedTrackColor = AppColors.primary.copy(alpha = 0.3f),
+                    uncheckedThumbColor = AppColors.primary,
+                    uncheckedTrackColor = AppColors.primary.copy(alpha = 0.25f),
+                    uncheckedBorderColor = AppColors.primary.copy(alpha = 0.4f)
                 )
             )
         }
@@ -575,7 +581,10 @@ fun EditProfileDialog(
                     Switch(checked = notif, onCheckedChange = { notif = it },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = AppColors.primary,
-                            checkedTrackColor = AppColors.primary.copy(alpha = 0.3f)
+                            checkedTrackColor = AppColors.primary.copy(alpha = 0.3f),
+                            uncheckedThumbColor = AppColors.primary,
+                            uncheckedTrackColor = AppColors.primary.copy(alpha = 0.25f),
+                            uncheckedBorderColor = AppColors.primary.copy(alpha = 0.4f)
                         ))
                 }
             }

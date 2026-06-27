@@ -67,13 +67,16 @@ private val DarkNeutrals = NeutralPalette(
     outline = Color(0xFF252A40)
 )
 
+// Light palette uses a warm, soft off-white/cream tone (closer to the official F1 app's
+// light mode) instead of plain white or a cold gray, with enough contrast between
+// background/surface/surfaceVariant that cards and sections are visually distinguishable.
 private val LightNeutrals = NeutralPalette(
-    background = Color(0xFFF7F7F8),
+    background = Color(0xFFF2EFEA),
     surface = Color(0xFFFFFFFF),
-    surfaceVariant = Color(0xFFEDEDF0),
-    onBackground = Color(0xFF1A1A1A),
-    onSurfaceVariant = Color(0xFF666666),
-    outline = Color(0xFFE0E0E0)
+    surfaceVariant = Color(0xFFE8E3DC),
+    onBackground = Color(0xFF1C1B19),
+    onSurfaceVariant = Color(0xFF6B6862),
+    outline = Color(0xFFDDD8D0)
 )
 
 data class NeutralPalette(
@@ -113,7 +116,7 @@ fun BoxBoxTheme(content: @Composable () -> Unit) {
         lightColorScheme(
             primary = accent,
             onPrimary = onAccent,
-            primaryContainer = accent.copy(alpha = 0.15f),
+            primaryContainer = accent.copy(alpha = 0.22f),
             onPrimaryContainer = accent,
             secondary = accent,
             background = neutrals.background,

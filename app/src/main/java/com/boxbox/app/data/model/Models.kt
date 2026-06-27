@@ -71,13 +71,19 @@ data class Interval(
     val session_key: Int = 0
 )
 
+// Meeting: added circuit_image and country_flag, both real documented fields on
+// OpenF1's /meetings endpoint, used by the Results screen for track outline images
+// and country flag icons. Everything else unchanged from before.
 data class Meeting(
     val meeting_key: Int = 0,
     val meeting_name: String = "",
     val meeting_official_name: String = "",
     val location: String = "",
     val country_name: String = "",
+    val country_code: String = "",
+    val country_flag: String = "",
     val circuit_short_name: String = "",
+    val circuit_image: String = "",
     val date_start: String = "",
     val year: Int = 0
 )
