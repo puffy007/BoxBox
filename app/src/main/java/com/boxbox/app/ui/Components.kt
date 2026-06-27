@@ -1,7 +1,6 @@
 package com.boxbox.app.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border // Corrected import
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,25 +17,40 @@ import com.boxbox.app.ui.theme.*
 
 @Composable
 fun BoxBoxTopBar(title: String, actions: @Composable RowScope.() -> Unit = {}) {
-    Surface(color = AppColors.primary, shadowElevation = 4.dp) {
-        Row(
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .height(56.dp)
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = title,
-                color = AppColors.onPrimary,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 2.sp
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) { actions() }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(AppColors.background)
+                    .height(36.dp)
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = title,
+                    color = AppColors.onBackground,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.3.sp
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) { actions() }
+            }
         }
+        Box(
+            modifier = Modifier
+                .padding(start = 16.dp)
+                .width(32.dp)
+                .height(3.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(AppColors.primary)
+        )
+        Spacer(modifier = Modifier.height(12.dp).background(AppColors.background).fillMaxWidth())
     }
 }
 
@@ -117,10 +131,10 @@ fun TyreIndicator(compound: String) {
     }
     Box(
         modifier = Modifier
-            .size(14.dp)
-            .border(1.5.dp, color, CircleShape) // Fixed syntax error here
-            .padding(3.dp),
-        contentAlignment = Alignment.Center
+            .size(12.dp)
+            .clip(CircleShape)
+            .background(color.copy(alpha = 0.2f))
+            .padding(2.dp)
     ) {
         Box(
             modifier = Modifier
@@ -130,9 +144,6 @@ fun TyreIndicator(compound: String) {
         )
     }
 }
-
-@Composable
-fun TyreDot(compound: String) = TyreIndicator(compound)
 
 @Composable
 fun SectionLabel(text: String) {

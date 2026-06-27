@@ -198,7 +198,7 @@ fun ResultsListScreen(
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(12.dp),
+                        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 0.dp, bottom = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         items(s.data) { raceWithTrack ->
@@ -477,65 +477,6 @@ fun RaceDetailScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            val facts = circuitFactsFor(race.Circuit.circuitId)
-            if (facts != null) {
-                item {
-                    Surface(shape = RoundedCornerShape(14.dp), color = AppColors.surface, modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                "CIRCUIT",
-                                color = AppColors.onBackground,
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 0.5.sp
-                            )
-                            Spacer(Modifier.height(16.dp))
-                            Text("Circuit Length", color = AppColors.onSurfaceVariant, fontSize = 13.sp)
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                "${facts.circuitLengthKm}km",
-                                color = AppColors.onBackground,
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.ExtraBold
-                            )
-                            Spacer(Modifier.height(14.dp))
-                            Divider(color = AppColors.outline, thickness = 0.5.dp)
-                            Spacer(Modifier.height(14.dp))
-                            CircuitFactRow("First Grand Prix", facts.firstGrandPrix, "Number of Laps", facts.numberOfLaps.toString())
-                            Spacer(Modifier.height(14.dp))
-                            Divider(color = AppColors.outline, thickness = 0.5.dp)
-                            Spacer(Modifier.height(14.dp))
-                            Row(modifier = Modifier.fillMaxWidth()) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("Fastest Lap", color = AppColors.onSurfaceVariant, fontSize = 13.sp)
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(facts.lapRecordTime, color = AppColors.onBackground, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-                                    if (facts.lapRecordDriver != "—") {
-                                        Spacer(Modifier.height(2.dp))
-                                        Text(
-                                            "${facts.lapRecordDriver} (${facts.lapRecordYear})",
-                                            color = AppColors.onSurfaceVariant,
-                                            fontSize = 12.sp
-                                        )
-                                    }
-                                }
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("Race Distance", color = AppColors.onSurfaceVariant, fontSize = 13.sp)
-                                    Spacer(Modifier.height(4.dp))
-                                    Text("${facts.raceDistanceKm}km", color = AppColors.onBackground, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-                                }
-                            }
-                            Spacer(Modifier.height(10.dp))
-                            Text(
-                                "Circuit stats are reference data, not from a live API.",
-                                color = AppColors.onSurfaceVariant,
-                                fontSize = 10.sp
-                            )
-                        }
-                    }
-                }
-            }
-
             if (meeting?.circuit_image?.isNotEmpty() == true) {
                 item {
                     Surface(shape = RoundedCornerShape(14.dp), color = AppColors.surface, modifier = Modifier.fillMaxWidth()) {
@@ -719,23 +660,6 @@ fun ResultsTableRow(entry: TopThreeEntry) {
             modifier = Modifier.width(36.dp),
             textAlign = androidx.compose.ui.text.style.TextAlign.End
         )
-    }
-}
-
-/** Two-column stat pair for the circuit facts card, e.g. First Grand Prix / Number of Laps. */
-@Composable
-fun CircuitFactRow(label1: String, value1: String, label2: String, value2: String) {
-    Row(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(label1, color = AppColors.onSurfaceVariant, fontSize = 13.sp)
-            Spacer(Modifier.height(4.dp))
-            Text(value1, color = AppColors.onBackground, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(label2, color = AppColors.onSurfaceVariant, fontSize = 13.sp)
-            Spacer(Modifier.height(4.dp))
-            Text(value2, color = AppColors.onBackground, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-        }
     }
 }
 

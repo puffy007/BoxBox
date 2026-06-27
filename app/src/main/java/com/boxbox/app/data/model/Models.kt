@@ -1,5 +1,7 @@
 package com.boxbox.app.data.model
 
+import com.google.firebase.firestore.PropertyName
+
 // --- OpenF1 Models ---
 
 data class Session(
@@ -182,7 +184,10 @@ data class UserProfile(
     val favouriteDriver: String = "",
     val favouriteTeam: String = "",
     val notificationsEnabled: Boolean = true,
-    val racesWatched: Int = 0
+    val racesWatched: Int = 0,
+    @get:PropertyName("isDarkMode")
+    @set:PropertyName("isDarkMode")
+    var isDarkMode: Boolean = false
 )
 
 // --- UI State helpers ---

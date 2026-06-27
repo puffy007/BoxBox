@@ -162,12 +162,15 @@ fun DriverStandingRow(standing: DriverStanding, photoUrl: String?, onClick: () -
             modifier = Modifier.width(40.dp)
         )
 
-        // Driver headshot, circular, like the official app's portrait thumbnail
+        // Driver headshot, circular, like the official app's portrait thumbnail.
+        // Light mode needs a higher alpha than dark mode for the same team color to
+        // read as a visible tint rather than a near-invisible pastel wash.
+        val photoBgAlpha = if (ThemeState.isDarkMode) 0.15f else 0.35f
         Box(
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(teamColor.copy(alpha = 0.15f)),
+                .background(teamColor.copy(alpha = photoBgAlpha)),
             contentAlignment = Alignment.Center
         ) {
             if (photoUrl != null) {
@@ -240,11 +243,12 @@ fun ConstructorStandingRow(standing: ConstructorStanding, onClick: () -> Unit) {
         )
 
         val logoUrl = resolveTeamLogo(standing.Constructor.name)
+        val logoBgAlpha = if (ThemeState.isDarkMode) 0.35f else 0.55f
         Box(
             modifier = Modifier
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(teamColor.copy(alpha = 0.35f)),
+                .background(teamColor.copy(alpha = logoBgAlpha)),
             contentAlignment = Alignment.Center
         ) {
             if (logoUrl != null) {

@@ -6,6 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.boxbox.app.data.model.UiState
 import com.boxbox.app.data.model.UserProfile
 import com.boxbox.app.data.repository.BoxBoxRepository
+import com.boxbox.app.ui.theme.ThemeState
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
+import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -56,11 +60,14 @@ class ProfileViewModel(
             try {
                 val result = repository.signUp(email, password)
                 val uid = result.user?.uid ?: return@launch
-                // CREATE profile in Firestore
+                // CREATE profile in Firestore - isDarkMode defaults to whatever the
+                // device is currently showing, so a brand-new account starts from the
+                // theme the person was already looking at rather than a hardcoded value.
                 val newProfile = UserProfile(
                     uid = uid,
                     displayName = displayName,
-                    email = email
+                    email = email,
+                    isDarkMode = ThemeState.isDarkMode
                 )
                 repository.createUserProfile(newProfile)
                 _authState.value = AuthState.Authenticated(uid)
@@ -84,7 +91,19 @@ class ProfileViewModel(
             _profile.value = UiState.Loading
             try {
                 val p = repository.getUserProfile(uid)
-                _profile.value = if (p != null) UiState.Success(p) else UiState.Error("Profile not found")
+                android.util.Log.d("BoxBoxTheme", "ProfileViewModel.loadProfile fetched isDarkMode=${p?.isDarkMode}")
+                if (p != null) {
+                    _profile.value = UiState.Success(p)
+                    // Sync the global theme state to match this account's saved
+                    // preferences (team color + dark/light mode) as soon as the
+                    // profile loads - covers both "just logged in" and "app restarted
+                    // while already logged in" since checkAuth() also calls this.
+                    ThemeState.favouriteTeam = p.favouriteTeam
+                    ThemeState.isDarkMode = p.isDarkMode
+                    android.util.Log.d("BoxBoxTheme", "ProfileViewModel.loadProfile SET ThemeState.isDarkMode=${ThemeState.isDarkMode}")
+                } else {
+                    _profile.value = UiState.Error("Profile not found")
+                }
             } catch (e: Exception) {
                 _profile.value = UiState.Error(e.message ?: "Error")
             }
@@ -107,6 +126,45 @@ class ProfileViewModel(
                 _actionResult.value = "Profile updated!"
             } catch (e: Exception) {
                 _actionResult.value = "Update failed: ${e.message}"
+            }
+        }
+    }
+
+    /**
+     * Saves the dark/light mode preference to this account's Firestore profile, so it
+     * follows the user across devices the same way favouriteTeam already does - rather
+     * than being a local, device-only setting.
+     */
+    /**
+     * Saves the dark/light mode preference to this account's Firestore profile, so it
+     * follows the user across devices.
+     */
+    fun updateThemePreference(isDarkMode: Boolean) {
+        // 1. Odmah ažuriraj globalni state da se UI promijeni (Optimistic update)
+        ThemeState.isDarkMode = isDarkMode
+
+        // 2. Ažuriraj lokalni profil state flow tako da Switch na ekranu ne "skakuće"
+        val current = _profile.value
+        if (current is UiState.Success) {
+            _profile.value = UiState.Success(current.data.copy(isDarkMode = isDarkMode))
+        }
+
+        // 3. Uzmi UID samo jednom (ovdje je bila greška s duplom deklaracijom)
+        val uid = repository.getCurrentUser()?.uid ?: return
+
+        // 4. Pokreni snimanje u bazu preko coroutine
+        viewModelScope.launch {
+            try {
+                // Koristimo repository metodu koju već imaš (isDarkMode umjesto newMode)
+                repository.updateUserProfile(uid, mapOf("isDarkMode" to isDarkMode))
+            } catch (e: Exception) {
+                // Ako snimanje ne uspije, vrati sve na staro (Rollback)
+                val rollback = _profile.value
+                if (rollback is UiState.Success) {
+                    _profile.value = UiState.Success(rollback.data.copy(isDarkMode = !isDarkMode))
+                }
+                ThemeState.isDarkMode = !isDarkMode
+                _actionResult.value = "Couldn't save theme: ${e.message}"
             }
         }
     }

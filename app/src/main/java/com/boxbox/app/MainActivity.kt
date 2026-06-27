@@ -61,28 +61,40 @@ class MainActivity : ComponentActivity() {
         createNotificationChannels(this)
 
         setContent {
-            val coroutineScope = rememberCoroutineScope()
-            LaunchedEffect(Unit) {
-                coroutineScope.launch {
-                    try {
-                        val repo = BoxBoxRepository()
-                        val uid = repo.getCurrentUser()?.uid
-                        if (uid != null) {
-                            val profile = repo.getUserProfile(uid)
-                            if (profile != null && profile.favouriteTeam.isNotEmpty()) {
+            // Block rendering until the saved theme preference is loaded (or confirmed
+            // absent), so BoxBoxTheme never gets a chance to render with the default
+            // isDarkMode value first and then "flip" - this removes any race between
+            // the Firestore fetch completing and the first composition pass.
+            val themeLoaded by produceState(initialValue = false) {
+                try {
+                    val repo = BoxBoxRepository()
+                    val uid = repo.getCurrentUser()?.uid
+                    android.util.Log.d("BoxBoxTheme", "uid=$uid")
+                    if (uid != null) {
+                        val profile = repo.getUserProfile(uid)
+                        android.util.Log.d("BoxBoxTheme", "fetched profile.isDarkMode=${profile?.isDarkMode}")
+                        if (profile != null) {
+                            if (profile.favouriteTeam.isNotEmpty()) {
                                 ThemeState.favouriteTeam = profile.favouriteTeam
                             }
+                            ThemeState.isDarkMode = profile.isDarkMode
+                            android.util.Log.d("BoxBoxTheme", "set ThemeState.isDarkMode=${ThemeState.isDarkMode}")
                         }
-                    } catch (e: Exception) { /* stay on default theme */ }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("BoxBoxTheme", "failed to load profile", e)
                 }
+                value = true
             }
 
-            BoxBoxTheme {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    val perm = rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
-                    LaunchedEffect(Unit) { perm.launchPermissionRequest() }
+            if (themeLoaded) {
+                BoxBoxTheme {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        val perm = rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
+                        LaunchedEffect(Unit) { perm.launchPermissionRequest() }
+                    }
+                    BoxBoxAppFunction()
                 }
-                BoxBoxAppFunction()
             }
         }
     }
@@ -106,7 +118,9 @@ fun BoxBoxAppFunction() {
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
-            modifier = Modifier.padding(if (showBottomBar) innerPadding else PaddingValues(0.dp))
+            modifier = Modifier.padding(
+                bottom = if (showBottomBar) innerPadding.calculateBottomPadding() else 0.dp
+            )
         ) {
             composable(Screen.Home.route) { HomeScreen() }
             composable(Screen.Live.route) { LiveScreen() }

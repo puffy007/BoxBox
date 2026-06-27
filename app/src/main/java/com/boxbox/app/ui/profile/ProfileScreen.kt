@@ -182,7 +182,7 @@ fun ProfileContent(vm: ProfileViewModel) {
     ) {
         BoxBoxTopBar(title = "PROFILE") {
             IconButton(onClick = { vm.signOut() }) {
-                Icon(Icons.Default.ExitToApp, contentDescription = "Sign out", tint = AppColors.onPrimary)
+                Icon(Icons.Default.ExitToApp, contentDescription = "Sign out", tint = AppColors.primary)
             }
         }
 
@@ -196,7 +196,7 @@ fun ProfileContent(vm: ProfileViewModel) {
                 val profile = state.data
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     item {
@@ -270,7 +270,11 @@ fun ProfileContent(vm: ProfileViewModel) {
                     // Appearance section
                     item { SectionLabel("Appearance") }
                     item {
-                        ThemeToggleRow()
+                        ThemeToggleRow(
+                            isDarkMode = ThemeState.isDarkMode
+                        ) { newValue ->
+                            vm.updateThemePreference(newValue)
+                        }
                     }
                     item {
                         TeamThemeRow(currentTeam = profile.favouriteTeam) { newTeam ->
@@ -371,9 +375,7 @@ fun ProfileContent(vm: ProfileViewModel) {
 
 // ---- Light/Dark theme toggle ----
 @Composable
-fun ThemeToggleRow() {
-    var isDark by remember { mutableStateOf(ThemeState.isDarkMode) }
-
+fun ThemeToggleRow(isDarkMode: Boolean, onToggle: (Boolean) -> Unit) {
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = AppColors.surface,
@@ -390,7 +392,7 @@ fun ThemeToggleRow() {
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        if (isDark) Icons.Default.DarkMode else Icons.Default.LightMode,
+                        if (isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
                         contentDescription = null,
                         tint = AppColors.primary,
                         modifier = Modifier.size(20.dp)
@@ -400,14 +402,11 @@ fun ThemeToggleRow() {
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text("Dark Mode", color = AppColors.onBackground, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                Text(if (isDark) "Currently dark" else "Currently light", color = AppColors.onSurfaceVariant, fontSize = 11.sp)
+                Text(if (isDarkMode) "Currently dark" else "Currently light", color = AppColors.onSurfaceVariant, fontSize = 11.sp)
             }
             Switch(
-                checked = isDark,
-                onCheckedChange = {
-                    isDark = it
-                    ThemeState.isDarkMode = it
-                },
+                checked = isDarkMode,
+                onCheckedChange = { onToggle(it) },
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = AppColors.primary,
                     checkedTrackColor = AppColors.primary.copy(alpha = 0.3f),
