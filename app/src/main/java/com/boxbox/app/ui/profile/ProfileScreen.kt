@@ -167,6 +167,7 @@ fun AuthScreen(vm: ProfileViewModel) {
 @Composable
 fun ProfileContent(vm: ProfileViewModel) {
     val profileState by vm.profile.collectAsState()
+    val isUploadingPhoto by vm.isUploadingPhoto.collectAsState()
     val context = LocalContext.current
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -175,10 +176,10 @@ fun ProfileContent(vm: ProfileViewModel) {
 
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        if (success) cameraUri?.let { vm.uploadPhoto(it) }
+        if (success) cameraUri?.let { vm.uploadPhoto(context, it) }
     }
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let { vm.uploadPhoto(it) }
+        uri?.let { vm.uploadPhoto(context, it) }
     }
 
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA) { granted ->
@@ -230,10 +231,16 @@ fun ProfileContent(vm: ProfileViewModel) {
                                         .size(80.dp)
                                         .clip(CircleShape)
                                         .background(AppColors.primary)
-                                        .clickable { showPhotoOptions = true },
+                                        .clickable(enabled = !isUploadingPhoto) { showPhotoOptions = true },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    if (profile.photoUrl.isNotEmpty()) {
+                                    if (isUploadingPhoto) {
+                                        CircularProgressIndicator(
+                                            color = AppColors.onPrimary,
+                                            strokeWidth = 2.dp,
+                                            modifier = Modifier.size(28.dp)
+                                        )
+                                    } else if (profile.photoUrl.isNotEmpty()) {
                                         AsyncImage(
                                             model = profile.photoUrl,
                                             contentDescription = "Profile photo",
@@ -311,18 +318,16 @@ fun ProfileContent(vm: ProfileViewModel) {
                     item { SectionLabel("Settings") }
 
                     item {
-                        SettingRow(icon = Icons.Default.PhotoCamera, title = "Change photo", subtitle = "Camera or gallery") {
-                            showPhotoOptions = true
-                        }
-                    }
-                    item {
                         SettingRow(icon = Icons.Default.Edit, title = "Edit profile", subtitle = "Name, team, favourite") {
                             showEditDialog = true
                         }
                     }
                     item {
-                        SettingRow(icon = Icons.Default.Notifications, title = "Notifications",
-                            subtitle = if (profile.notificationsEnabled) "Enabled" else "Disabled") {}
+                        NotificationToggleRow(
+                            enabled = profile.notificationsEnabled
+                        ) { newValue ->
+                            vm.updateNotificationsEnabled(context, newValue)
+                        }
                     }
                     item {
                         SettingRow(icon = Icons.Default.Delete, title = "Delete account",
@@ -448,6 +453,52 @@ fun ThemeToggleRow(isDarkMode: Boolean, onToggle: (Boolean) -> Unit) {
             }
             Switch(
                 checked = isDarkMode,
+                onCheckedChange = { onToggle(it) },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = AppColors.primary,
+                    checkedTrackColor = AppColors.primary.copy(alpha = 0.3f),
+                    uncheckedThumbColor = AppColors.primary,
+                    uncheckedTrackColor = AppColors.primary.copy(alpha = 0.25f),
+                    uncheckedBorderColor = AppColors.primary.copy(alpha = 0.4f)
+                )
+            )
+        }
+    }
+}
+
+// ---- Race countdown notifications toggle - drives RaceCountdownScheduler ----
+@Composable
+fun NotificationToggleRow(enabled: Boolean, onToggle: (Boolean) -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = AppColors.surface,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = AppColors.primary.copy(alpha = 0.18f),
+                modifier = Modifier.size(36.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Default.Notifications,
+                        contentDescription = null,
+                        tint = AppColors.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Race Notifications", color = AppColors.onBackground, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(if (enabled) "Enabled" else "Disabled", color = AppColors.onSurfaceVariant, fontSize = 11.sp)
+            }
+            Switch(
+                checked = enabled,
                 onCheckedChange = { onToggle(it) },
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = AppColors.primary,

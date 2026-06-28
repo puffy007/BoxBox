@@ -1,5 +1,6 @@
 package com.boxbox.app.viewmodel
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -26,6 +27,9 @@ class ProfileViewModel(
 
     private val _actionResult = MutableStateFlow<String?>(null)
     val actionResult: StateFlow<String?> = _actionResult
+
+    private val _isUploadingPhoto = MutableStateFlow(false)
+    val isUploadingPhoto: StateFlow<Boolean> = _isUploadingPhoto
 
     init {
         checkAuth()
@@ -169,17 +173,57 @@ class ProfileViewModel(
         }
     }
 
-    // UPDATE PHOTO
-    fun uploadPhoto(uri: Uri) {
+    /**
+     * Toggles the race-countdown test notifications on/off. Saves the preference to
+     * Firestore (so it persists and syncs like favouriteTeam/isDarkMode), and starts or
+     * stops the actual WorkManager chain immediately so the switch has visible effect
+     * without needing an app restart.
+     */
+    fun updateNotificationsEnabled(context: Context, enabled: Boolean) {
+        val current = _profile.value
+        if (current is UiState.Success) {
+            _profile.value = UiState.Success(current.data.copy(notificationsEnabled = enabled))
+        }
+
+        if (enabled) {
+            com.boxbox.app.notifications.RaceCountdownScheduler.start(context)
+        } else {
+            com.boxbox.app.notifications.RaceCountdownScheduler.stop(context)
+        }
+
         val uid = repository.getCurrentUser()?.uid ?: return
         viewModelScope.launch {
             try {
-                val url = repository.uploadProfilePhoto(uid, uri)
+                repository.updateUserProfile(uid, mapOf("notificationsEnabled" to enabled))
+            } catch (e: Exception) {
+                val rollback = _profile.value
+                if (rollback is UiState.Success) {
+                    _profile.value = UiState.Success(rollback.data.copy(notificationsEnabled = !enabled))
+                }
+                if (enabled) {
+                    com.boxbox.app.notifications.RaceCountdownScheduler.stop(context)
+                } else {
+                    com.boxbox.app.notifications.RaceCountdownScheduler.start(context)
+                }
+                _actionResult.value = "Couldn't save notification setting: ${e.message}"
+            }
+        }
+    }
+
+    // UPDATE PHOTO
+    fun uploadPhoto(context: Context, uri: Uri) {
+        val uid = repository.getCurrentUser()?.uid ?: return
+        viewModelScope.launch {
+            _isUploadingPhoto.value = true
+            try {
+                val url = repository.uploadProfilePhoto(context, uid, uri)
                 repository.updateUserProfile(uid, mapOf("photoUrl" to url))
                 loadProfile(uid)
                 _actionResult.value = "Photo updated!"
             } catch (e: Exception) {
                 _actionResult.value = "Photo upload failed: ${e.message}"
+            } finally {
+                _isUploadingPhoto.value = false
             }
         }
     }

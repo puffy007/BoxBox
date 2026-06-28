@@ -1,5 +1,6 @@
 package com.boxbox.app.data.repository
 
+import android.content.Context
 import com.boxbox.app.data.api.RetrofitClient
 import com.boxbox.app.data.model.*
 import com.google.firebase.auth.FirebaseAuth
@@ -123,9 +124,41 @@ class BoxBoxRepository {
 
     // ---- Firebase Storage (profile photo) ----
 
-    suspend fun uploadProfilePhoto(uid: String, uri: Uri): String {
+    suspend fun uploadProfilePhoto(context: Context, uid: String, uri: Uri): String {
+        // Camera/gallery images can be several MB at full resolution, which makes
+        // uploads slow especially on mobile data. A profile photo never needs to be
+        // shown bigger than a few hundred pixels, so we downscale to at most 512px
+        // on the longest side and re-encode as JPEG before uploading - this typically
+        // shrinks a multi-MB photo down to well under 200KB, making the upload feel
+        // close to instant instead of taking a long time.
+        val inputStream = context.contentResolver.openInputStream(uri)
+            ?: throw IllegalStateException("Could not open image")
+        val original = android.graphics.BitmapFactory.decodeStream(inputStream)
+        inputStream.close()
+
+        val maxDimension = 512
+        val scale = minOf(
+            maxDimension.toFloat() / original.width,
+            maxDimension.toFloat() / original.height,
+            1f
+        )
+        val scaled = if (scale < 1f) {
+            android.graphics.Bitmap.createScaledBitmap(
+                original,
+                (original.width * scale).toInt(),
+                (original.height * scale).toInt(),
+                true
+            )
+        } else {
+            original
+        }
+
+        val outputStream = java.io.ByteArrayOutputStream()
+        scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, outputStream)
+        val compressedBytes = outputStream.toByteArray()
+
         val ref = storage.reference.child("profile_photos/$uid.jpg")
-        ref.putFile(uri).await()
+        ref.putBytes(compressedBytes).await()
         return ref.downloadUrl.await().toString()
     }
 
