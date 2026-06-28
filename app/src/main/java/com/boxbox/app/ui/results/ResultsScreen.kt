@@ -1,11 +1,13 @@
 package com.boxbox.app.ui.results
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -17,6 +19,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +59,83 @@ data class TopThreeEntry(
     val points: String = ""
 )
 
+/**
+ * Maps a Jolpica circuitId to words we'd expect in OpenF1's meeting.location or
+ * meeting.circuit_short_name for that same track, for circuits where the city name
+ * Jolpica gives (e.g. "Abu Dhabi") doesn't appear anywhere in OpenF1's naming for that
+ * meeting (which uses "Yas Marina" - the circuit name, not the city). A small explicit
+ * list covering known mismatches, since track/city naming conventions differ
+ * unpredictably from one circuit to another.
+ */
+private val circuitIdFallbackHints: Map<String, List<String>> = mapOf(
+    "yas_marina" to listOf("yas", "yasmarina", "abudhabi"),
+    "albert_park" to listOf("albertpark", "melbourne"),
+    "marina_bay" to listOf("marinabay", "singapore"),
+    "americas" to listOf("austin", "americas", "cota"),
+    "rodriguez" to listOf("mexico", "rodriguez"),
+    "interlagos" to listOf("interlagos", "saopaulo"),
+    "vegas" to listOf("lasvegas", "vegas"),
+    "losail" to listOf("losail", "lusail", "qatar"),
+    "red_bull_ring" to listOf("redbullring", "spielberg"),
+    "villeneuve" to listOf("villeneuve", "montreal"),
+    "catalunya" to listOf("catalunya", "barcelona"),
+    "madring" to listOf("madring", "madrid")
+)
+
+/**
+ * Finds the OpenF1 meeting for a given Jolpica race. Tries the existing city-name match
+ * first (works for most circuits), then falls back to circuitId-based hints for circuits
+ * where OpenF1's location/circuit_short_name uses the track name rather than the city
+ * name Jolpica provides - this is what was leaving some circuits with no meeting match,
+ * and therefore no circuit_image, even though OpenF1 actually has the data.
+ */
+private fun findMeetingForRace(race: Race, meetings: List<Meeting>): Meeting? {
+    val cityMatch = meetings.firstOrNull { m ->
+        normalizeForMatch(m.location).contains(normalizeForMatch(race.Circuit.Location.locality)) ||
+                normalizeForMatch(race.Circuit.Location.locality).contains(normalizeForMatch(m.location))
+    }
+    if (cityMatch != null) return cityMatch
+
+    val hints = circuitIdFallbackHints[race.Circuit.circuitId] ?: return null
+    return meetings.firstOrNull { m ->
+        val normalizedLocation = normalizeForMatch(m.location)
+        val normalizedCircuitShortName = normalizeForMatch(m.circuit_short_name)
+        hints.any { hint ->
+            normalizedLocation.contains(hint) || normalizedCircuitShortName.contains(hint)
+        }
+    }
+}
+
+/**
+ * OpenF1's circuit_image PNGs aren't visually consistent: most use a track line that's
+ * clearly lighter than its surrounding border, which reads fine on our dark cards.
+ * Monaco and Hungary (and possibly others) ship with darker/lower-contrast tones instead -
+ * fine on a light background, but hard to see on our dark cards. We only touch these
+ * specific circuits, leaving every other circuit's image completely untouched.
+ */
+private val whitenCircuitIds = setOf("monaco", "hungaroring")
+
+/**
+ * Forces every visible (non-transparent) pixel of the image to pure white, regardless
+ * of its original colour - using BlendMode.SrcIn, which replaces the colour of every
+ * opaque/semi-opaque pixel with the filter colour while leaving fully transparent pixels
+ * untouched. This only depends on the image's alpha channel (its shape/silhouette), not
+ * on its original RGB values, so it can't be thrown off by a dark, low-contrast, or
+ * oddly-tinted source colour the way a ColorMatrix multiply/invert can. The whole track
+ * shape - thick border and thin line alike - becomes solid white, matching how the
+ * other circuits' assets already look on our dark cards.
+ */
+private val whitenColorFilter: ColorFilter = ColorFilter.tint(Color.White, BlendMode.SrcIn)
+
+/**
+ * Returns the whiten filter only when both (a) this circuit is known to need it and
+ * (b) we're in dark mode. In light mode these assets already render correctly as-is -
+ * this filter must never touch light mode, only compensate for the dark-card case.
+ */
+private fun circuitImageColorFilterFor(circuitId: String, isDarkTheme: Boolean): ColorFilter? {
+    return if (isDarkTheme && circuitId in whitenCircuitIds) whitenColorFilter else null
+}
+
 class ResultsViewModel(
     private val repository: BoxBoxRepository = BoxBoxRepository()
 ) : ViewModel() {
@@ -86,10 +167,7 @@ class ResultsViewModel(
                 val today = LocalDate.now()
                 val combined = schedule.map { race ->
                     val isPast = runCatching { LocalDate.parse(race.date).isBefore(today) }.getOrDefault(false)
-                    val meeting = meetings.firstOrNull { m ->
-                        normalizeForMatch(m.location).contains(normalizeForMatch(race.Circuit.Location.locality)) ||
-                                normalizeForMatch(race.Circuit.Location.locality).contains(normalizeForMatch(m.location))
-                    }
+                    val meeting = findMeetingForRace(race, meetings)
                     RaceWithTrack(race, meeting, isPast)
                 }
                 _races.value = UiState.Success(combined)
@@ -196,9 +274,10 @@ fun ResultsListScreen(
                         Text("No races found", color = AppColors.onSurfaceVariant)
                     }
                 } else {
+                    val nextRaceRound = s.data.firstOrNull { !it.isPast }?.race?.round
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 0.dp, bottom = 12.dp),
+                        contentPadding = PaddingValues(12.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         items(s.data) { raceWithTrack ->
@@ -211,6 +290,7 @@ fun ResultsListScreen(
                             } else {
                                 UpcomingRaceCard(
                                     raceWithTrack = raceWithTrack,
+                                    isNextRace = raceWithTrack.race.round == nextRaceRound,
                                     onClick = { onRaceClick(raceWithTrack) }
                                 )
                             }
@@ -223,75 +303,106 @@ fun ResultsListScreen(
 }
 
 @Composable
-fun UpcomingRaceCard(raceWithTrack: RaceWithTrack, onClick: () -> Unit) {
+fun UpcomingRaceCard(
+    raceWithTrack: RaceWithTrack,
+    isNextRace: Boolean = false,
+    onClick: () -> Unit
+) {
     val race = raceWithTrack.race
     val meeting = raceWithTrack.meeting
+    val isDarkTheme = isSystemInDarkTheme()
 
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = AppColors.surface,
+        border = if (isNextRace) BorderStroke(1.5.dp, AppColors.primary) else null,
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val flagUrl = raceFlagUrlFor(race.Circuit.Location.country)
-                        ?: meeting?.country_flag?.takeIf { it.isNotEmpty() }
-                    if (flagUrl != null) {
-                        AsyncImage(
-                            model = flagUrl,
-                            contentDescription = race.Circuit.Location.country,
-                            modifier = Modifier
-                                .size(18.dp)
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                        Spacer(Modifier.width(8.dp))
-                    }
+        Column {
+            if (isNextRace) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(AppColors.primary, RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp))
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                ) {
                     Text(
-                        "ROUND ${race.round}",
-                        color = AppColors.onSurfaceVariant,
+                        "NEXT RACE",
+                        color = AppColors.onPrimary,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = 0.8.sp
                     )
                 }
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    race.Circuit.Location.country,
-                    color = AppColors.onBackground,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    race.raceName.uppercase(),
-                    color = AppColors.onSurfaceVariant,
-                    fontSize = 11.sp,
-                    letterSpacing = 0.3.sp
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    formatRaceDateRange(race.date),
-                    color = AppColors.primary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                )
             }
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val flagUrl = raceFlagUrlFor(race.Circuit.Location.country)
+                            ?: meeting?.country_flag?.takeIf { it.isNotEmpty() }
+                        if (flagUrl != null) {
+                            AsyncImage(
+                                model = flagUrl,
+                                contentDescription = race.Circuit.Location.country,
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        Text(
+                            "ROUND ${race.round}",
+                            color = AppColors.onSurfaceVariant,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        race.Circuit.Location.country,
+                        color = AppColors.onBackground,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        race.raceName.uppercase(),
+                        color = AppColors.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        letterSpacing = 0.3.sp
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        formatRaceDateRange(race.date),
+                        color = AppColors.primary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
-            if (meeting?.circuit_image?.isNotEmpty() == true) {
-                AsyncImage(
-                    model = meeting.circuit_image,
-                    contentDescription = "${race.Circuit.circuitName} layout",
-                    modifier = Modifier.size(72.dp),
-                    contentScale = ContentScale.Fit,
-                    colorFilter = ColorFilter.tint(AppColors.onBackground)
-                )
+                if (meeting?.circuit_image?.isNotEmpty() == true) {
+                    Box(
+                        modifier = Modifier
+                            .width(72.dp)
+                            .aspectRatio(4f / 3f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AsyncImage(
+                            model = meeting.circuit_image,
+                            contentDescription = "${race.Circuit.circuitName} layout",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit,
+                            colorFilter = circuitImageColorFilterFor(race.Circuit.circuitId, isDarkTheme)
+                        )
+                    }
+                }
             }
         }
     }
@@ -443,62 +554,135 @@ fun RaceDetailScreen(
     val race = raceWithTrack.race
     val meeting = raceWithTrack.meeting
     var resultsExpanded by remember { mutableStateOf(false) }
+    val isDarkTheme = isSystemInDarkTheme()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(AppColors.background)
     ) {
-        Surface(color = AppColors.primary, shadowElevation = 4.dp) {
+        Surface(
+            color = AppColors.background,
+            shadowElevation = 0.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .statusBarsPadding()
-                    .height(56.dp)
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 8.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.Top
             ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = AppColors.onPrimary)
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.offset(y = (-4).dp)
+                ) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = AppColors.onBackground)
                 }
+                Spacer(Modifier.width(4.dp))
                 Column {
-                    Text(race.raceName, color = AppColors.onPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Text(
-                        "${race.Circuit.Location.locality} · ${formatRaceDateShort(race.date)}",
-                        color = AppColors.onPrimary.copy(alpha = 0.85f),
-                        fontSize = 11.sp
+                        "ROUND ${race.round}",
+                        color = AppColors.primary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        race.raceName,
+                        color = AppColors.onBackground,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(52.dp)
+                            .height(4.dp)
+                            .background(AppColors.primary, RoundedCornerShape(2.dp))
                     )
                 }
             }
         }
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .navigationBarsPadding(),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            item {
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+                    ResultDetailInfoRow("Circuit", race.Circuit.circuitName)
+                    ResultDetailInfoRow("Location", "${race.Circuit.Location.locality}, ${race.Circuit.Location.country}")
+                    ResultDetailInfoRow("Date", formatRaceDateRange(race.date), isLast = true)
+                }
+            }
+
             if (meeting?.circuit_image?.isNotEmpty() == true) {
                 item {
                     Surface(shape = RoundedCornerShape(14.dp), color = AppColors.surface, modifier = Modifier.fillMaxWidth()) {
-                        Box(modifier = Modifier.padding(20.dp), contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp)
+                                .aspectRatio(4f / 3f),
+                            contentAlignment = Alignment.Center
+                        ) {
                             AsyncImage(
                                 model = meeting.circuit_image,
                                 contentDescription = "${race.Circuit.circuitName} layout",
-                                modifier = Modifier.size(160.dp),
+                                modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Fit,
-                                colorFilter = ColorFilter.tint(AppColors.onBackground)
+                                colorFilter = circuitImageColorFilterFor(race.Circuit.circuitId, isDarkTheme)
                             )
                         }
                     }
                 }
             }
 
-            item {
-                Surface(shape = RoundedCornerShape(14.dp), color = AppColors.surface, modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        ResultDetailInfoRow("Circuit", race.Circuit.circuitName)
-                        ResultDetailInfoRow("Location", "${race.Circuit.Location.locality}, ${race.Circuit.Location.country}")
-                        ResultDetailInfoRow("Date", formatRaceDateRange(race.date), isLast = true)
+            val facts = circuitFactsFor(race.Circuit.circuitId)
+            if (facts != null) {
+                item {
+                    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+                        Text("Circuit Length", color = AppColors.onSurfaceVariant, fontSize = 13.sp)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "${facts.circuitLengthKm}km",
+                            color = AppColors.onBackground,
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Spacer(Modifier.height(14.dp))
+                        Divider(color = AppColors.outline, thickness = 0.5.dp)
+                        Spacer(Modifier.height(14.dp))
+                        CircuitFactRow("First Grand Prix", facts.firstGrandPrix, "Number of Laps", facts.numberOfLaps.toString())
+                        Spacer(Modifier.height(14.dp))
+                        Divider(color = AppColors.outline, thickness = 0.5.dp)
+                        Spacer(Modifier.height(14.dp))
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Fastest Lap", color = AppColors.onSurfaceVariant, fontSize = 13.sp)
+                                Spacer(Modifier.height(4.dp))
+                                Text(facts.lapRecordTime, color = AppColors.onBackground, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                                if (facts.lapRecordDriver != "—") {
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        "${facts.lapRecordDriver} (${facts.lapRecordYear})",
+                                        color = AppColors.onSurfaceVariant,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Race Distance", color = AppColors.onSurfaceVariant, fontSize = 13.sp)
+                                Spacer(Modifier.height(4.dp))
+                                Text("${facts.raceDistanceKm}km", color = AppColors.onBackground, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                            }
+                        }
                     }
                 }
             }
@@ -673,6 +857,23 @@ fun ResultDetailInfoRow(label: String, value: String, isLast: Boolean = false) {
         Text(value, color = AppColors.onBackground, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
     }
     if (!isLast) Divider(color = AppColors.outline, thickness = 0.5.dp)
+}
+
+/** Two-column stat pair for the circuit facts card, e.g. First Grand Prix / Number of Laps. */
+@Composable
+fun CircuitFactRow(label1: String, value1: String, label2: String, value2: String) {
+    Row(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label1, color = AppColors.onSurfaceVariant, fontSize = 13.sp)
+            Spacer(Modifier.height(4.dp))
+            Text(value1, color = AppColors.onBackground, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label2, color = AppColors.onSurfaceVariant, fontSize = 13.sp)
+            Spacer(Modifier.height(4.dp))
+            Text(value2, color = AppColors.onBackground, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+        }
+    }
 }
 
 fun formatRaceDateRange(date: String): String {

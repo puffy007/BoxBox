@@ -35,6 +35,10 @@ import com.boxbox.app.ui.theme.*
 import com.boxbox.app.viewmodel.AuthState
 import com.boxbox.app.viewmodel.ProfileViewModel
 import java.io.File
+import android.Manifest
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 
 // Full 2026 F1 grid, matching the team keys in Theme.kt's teamAccentColors map.
 // "Racing Bulls" replaces "RB" as the current-season name; "Audi" replaces
@@ -159,6 +163,7 @@ fun AuthScreen(vm: ProfileViewModel) {
     }
 }
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun ProfileContent(vm: ProfileViewModel) {
     val profileState by vm.profile.collectAsState()
@@ -166,6 +171,7 @@ fun ProfileContent(vm: ProfileViewModel) {
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showPhotoOptions by remember { mutableStateOf(false) }
+    var showCameraPermissionDeniedMessage by remember { mutableStateOf(false) }
 
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
@@ -175,14 +181,28 @@ fun ProfileContent(vm: ProfileViewModel) {
         uri?.let { vm.uploadPhoto(it) }
     }
 
+    val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA) { granted ->
+        if (granted) {
+            val file = File(context.cacheDir, "profile_photo.jpg")
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+            cameraUri = uri
+            cameraLauncher.launch(uri)
+        } else {
+            showCameraPermissionDeniedMessage = true
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(AppColors.background)
     ) {
         BoxBoxTopBar(title = "PROFILE") {
-            IconButton(onClick = { vm.signOut() }) {
-                Icon(Icons.Default.ExitToApp, contentDescription = "Sign out", tint = AppColors.primary)
+            IconButton(
+                onClick = { vm.signOut() },
+                modifier = Modifier.offset(y = 8.dp)
+            ) {
+                Icon(Icons.Default.ExitToApp, contentDescription = "Sign out", tint = AppColors.onBackground)
             }
         }
 
@@ -310,7 +330,6 @@ fun ProfileContent(vm: ProfileViewModel) {
                             showDeleteDialog = true
                         }
                     }
-                    item { Spacer(Modifier.height(80.dp)) }
                 }
 
                 if (showEditDialog) {
@@ -350,10 +369,14 @@ fun ProfileContent(vm: ProfileViewModel) {
                             Column {
                                 TextButton(onClick = {
                                     showPhotoOptions = false
-                                    val file = File(context.cacheDir, "profile_photo.jpg")
-                                    val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
-                                    cameraUri = uri
-                                    cameraLauncher.launch(uri)
+                                    if (cameraPermissionState.status.isGranted) {
+                                        val file = File(context.cacheDir, "profile_photo.jpg")
+                                        val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                                        cameraUri = uri
+                                        cameraLauncher.launch(uri)
+                                    } else {
+                                        cameraPermissionState.launchPermissionRequest()
+                                    }
                                 }) { Text("📷  Take Photo", color = AppColors.onBackground) }
                                 TextButton(onClick = {
                                     showPhotoOptions = false
@@ -364,6 +387,25 @@ fun ProfileContent(vm: ProfileViewModel) {
                         confirmButton = {},
                         dismissButton = {
                             TextButton(onClick = { showPhotoOptions = false }) { Text("Cancel") }
+                        },
+                        containerColor = AppColors.surface
+                    )
+                }
+
+                if (showCameraPermissionDeniedMessage) {
+                    AlertDialog(
+                        onDismissRequest = { showCameraPermissionDeniedMessage = false },
+                        title = { Text("Camera access needed", color = AppColors.onBackground) },
+                        text = {
+                            Text(
+                                "BoxBox needs camera permission to take a profile photo. You can grant it from Settings.",
+                                color = AppColors.onSurfaceVariant
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(onClick = { showCameraPermissionDeniedMessage = false }) {
+                                Text("OK", color = AppColors.primary, fontWeight = FontWeight.Bold)
+                            }
                         },
                         containerColor = AppColors.surface
                     )

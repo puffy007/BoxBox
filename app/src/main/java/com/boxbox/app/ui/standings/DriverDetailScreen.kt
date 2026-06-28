@@ -64,11 +64,10 @@ fun DriverDetailScreen(
 
 @Composable
 fun DetailBackBar(onBack: () -> Unit, bg: Color) {
-    Surface(color = bg, shadowElevation = 2.dp) {
+    Surface(color = bg, shadowElevation = 2.dp, modifier = Modifier.statusBarsPadding()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
                 .height(56.dp)
                 .padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -97,11 +96,19 @@ fun DriverDetailContent(data: DriverDetailData, onBack: () -> Unit) {
     val carNumber = openF1?.driver_number?.takeIf { it != 0 }?.toString()
         ?: data.standing.Driver.permanentNumber.ifEmpty { "—" }
 
+    // statusBarsPadding/navigationBarsPadding are applied to the OUTER Column, BEFORE
+    // verticalScroll() in the modifier chain. Modifiers are applied outer-to-inner left
+    // to right, so placing them before verticalScroll() makes them outer/scroll-independent
+    // space reserved at the true top/bottom of the screen - it never moves no matter what
+    // content has scrolled into view. Putting them after verticalScroll() (the previous
+    // bug) or only on the first item's Box made them scroll away with the content instead
+    // of protecting the actual screen edges.
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .statusBarsPadding()
             .navigationBarsPadding()
+            .verticalScroll(rememberScrollState())
     ) {
         // ---- Hero header: team-colored gradient, giant number watermark, photo, name ----
         Box(
@@ -143,7 +150,6 @@ fun DriverDetailContent(data: DriverDetailData, onBack: () -> Unit) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .statusBarsPadding()
                         .height(56.dp)
                         .padding(horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -353,15 +359,6 @@ fun StatisticsTab(data: DriverDetailData, teamColor: Color, carNumber: String) {
                 ""
             )
         }
-
-        Spacer(Modifier.height(20.dp))
-        Text(
-            "Position, points, and wins come from Jolpica's championship standings. Races entered, podiums, and win rate are computed from Jolpica's per-race results for this season. Car number, code, and photo come from OpenF1's latest session.",
-            color = AppColors.onSurfaceVariant,
-            fontSize = 11.sp,
-            lineHeight = 16.sp,
-            modifier = Modifier.padding(horizontal = 4.dp)
-        )
 
         Spacer(Modifier.height(24.dp))
     }

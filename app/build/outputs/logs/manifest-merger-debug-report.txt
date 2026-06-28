@@ -1,9 +1,20 @@
 -- Merging decision tree log ---
+provider#androidx.core.content.FileProvider
+INJECTED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:41:9-49:20
+	android:grantUriPermissions
+		ADDED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:45:13-47
+	android:authorities
+		INJECTED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml
+		ADDED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:43:13-60
+	android:exported
+		ADDED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:44:13-37
+	android:name
+		ADDED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:42:13-62
 manifest
-ADDED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:2:1-42:12
-INJECTED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:2:1-42:12
-INJECTED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:2:1-42:12
-INJECTED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:2:1-42:12
+ADDED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:2:1-52:12
+INJECTED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:2:1-52:12
+INJECTED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:2:1-52:12
+INJECTED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:2:1-52:12
 MERGED from [androidx.navigation:navigation-common:2.8.1] C:\Users\roman\.gradle\caches\8.12\transforms\c40c65aeb28c5871814e9d13a0fab403\transformed\navigation-common-2.8.1\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.navigation:navigation-runtime:2.8.1] C:\Users\roman\.gradle\caches\8.12\transforms\c7923e80a2805a93fd00fcefe0250246\transformed\navigation-runtime-2.8.1\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.navigation:navigation-common-ktx:2.8.1] C:\Users\roman\.gradle\caches\8.12\transforms\cb6a7afa2555474c719276b9e3238ce8\transformed\navigation-common-ktx-2.8.1\AndroidManifest.xml:2:1-7:12
@@ -175,8 +186,8 @@ ADDED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:8
 	android:name
 		ADDED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:8:22-71
 application
-ADDED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:10:5-41:19
-INJECTED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:10:5-41:19
+ADDED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:10:5-51:19
+INJECTED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:10:5-51:19
 MERGED from [com.google.firebase:firebase-firestore-ktx:25.1.0] C:\Users\roman\.gradle\caches\8.12\transforms\b4147bbfe86977281c256b42fa8d297f\transformed\jetified-firebase-firestore-ktx-25.1.0\AndroidManifest.xml:8:5-16:19
 MERGED from [com.google.firebase:firebase-firestore-ktx:25.1.0] C:\Users\roman\.gradle\caches\8.12\transforms\b4147bbfe86977281c256b42fa8d297f\transformed\jetified-firebase-firestore-ktx-25.1.0\AndroidManifest.xml:8:5-16:19
 MERGED from [com.google.firebase:firebase-firestore:26.3.0] C:\Users\roman\.gradle\caches\8.12\transforms\54316f13182223ee3d8a3e6928f9ab04\transformed\jetified-firebase-firestore-26.3.0\AndroidManifest.xml:13:5-24:19
@@ -299,6 +310,12 @@ ADDED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:3
 		ADDED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:39:13-37
 	android:name
 		ADDED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:38:13-60
+meta-data#android.support.FILE_PROVIDER_PATHS
+ADDED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:46:13-48:54
+	android:resource
+		ADDED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:48:17-51
+	android:name
+		ADDED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml:47:17-67
 uses-sdk
 INJECTED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from C:\Users\roman\source\repos\BoxBox\app\src\main\AndroidManifest.xml

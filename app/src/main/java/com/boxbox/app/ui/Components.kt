@@ -28,7 +28,7 @@ fun BoxBoxTopBar(title: String, actions: @Composable RowScope.() -> Unit = {}) {
                     .fillMaxWidth()
                     .background(AppColors.background)
                     .height(36.dp)
-                    .padding(start = 16.dp, end = 16.dp, top = 8.dp),
+                    .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
