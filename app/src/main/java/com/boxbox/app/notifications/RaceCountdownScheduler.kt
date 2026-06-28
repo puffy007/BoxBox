@@ -1,58 +1,45 @@
 package com.boxbox.app.notifications
 
 import android.content.Context
-import androidx.work.ExistingWorkPolicy
-import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
 
 /**
- * Drives RaceCountdownWorker on a ~1-minute cadence for testing/dev purposes.
+ * Drives RaceCountdownWorker on a user-configurable interval (1-12 hours), using a real
+ * PeriodicWorkRequest. The user picks the interval via a wheel picker in Profile
+ * settings (see HoursWheelPicker); the minimum is clamped to 1 hour both in the UI and
+ * here, comfortably above WorkManager/Android's own 15-minute minimum for periodic
+ * work, so there's no OS-level clamping surprise.
  *
- * WorkManager's PeriodicWorkRequest has a hard 15-minute minimum interval enforced by
- * the OS - there's no way to ask for "every 1 minute" with it. To get a 1-minute test
- * cadence, each run of RaceCountdownWorker enqueues the *next* run itself via a
- * OneTimeWorkRequest with a 1-minute initial delay, chaining indefinitely until
- * cancelled. This is intentionally a short-interval TEST mode - for the real "notify
- * 30 minutes before the race" feature, RaceNotificationScheduler's exact AlarmManager
- * alarm remains the right tool, since that only needs to fire once per race, not every
- * minute forever (which would drain battery in production).
+ * This is separate from RaceNotificationScheduler's one-shot "30 minutes before the
+ * race" AlarmManager alarm, which fires once per race rather than repeating - that
+ * stays as the precise pre-race reminder, while this is the repeating "how long until
+ * the next race" countdown notification the user can tune to their liking.
  */
-private const val WORK_NAME = "race_countdown_test"
+private const val WORK_NAME = "race_countdown"
 
 object RaceCountdownScheduler {
 
-    /** Starts the repeating 1-minute countdown notification chain. */
-    fun start(context: Context) {
-        val request = OneTimeWorkRequestBuilder<RaceCountdownWorker>()
-            .setInitialDelay(0, TimeUnit.SECONDS)
-            .build()
-        WorkManager.getInstance(context).enqueueUniqueWork(
+    /**
+     * Starts (or restarts, if already running with a different interval) the repeating
+     * countdown notification on the given interval.
+     */
+    fun start(context: Context, intervalHours: Int) {
+        val clampedHours = intervalHours.coerceIn(1, 12)
+        val request = PeriodicWorkRequestBuilder<RaceCountdownWorker>(
+            clampedHours.toLong(), TimeUnit.HOURS
+        ).build()
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
             WORK_NAME,
-            ExistingWorkPolicy.REPLACE,
+            ExistingPeriodicWorkPolicy.UPDATE,
             request
         )
     }
 
-    /** Stops the chain - call this when the user disables race notifications. */
+    /** Stops the repeating countdown notification - call when the user disables it. */
     fun stop(context: Context) {
         WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
-    }
-
-    /**
-     * Enqueues the next run, 1 minute from now. Called by RaceCountdownWorker itself
-     * at the end of doWork() to keep the chain going - this is what RaceCountdownWorker
-     * uses instead of returning Result.retry() (which has its own backoff timing we
-     * don't want here).
-     */
-    fun scheduleNext(context: Context) {
-        val request = OneTimeWorkRequestBuilder<RaceCountdownWorker>()
-            .setInitialDelay(1, TimeUnit.MINUTES)
-            .build()
-        WorkManager.getInstance(context).enqueueUniqueWork(
-            WORK_NAME,
-            ExistingWorkPolicy.REPLACE,
-            request
-        )
     }
 }

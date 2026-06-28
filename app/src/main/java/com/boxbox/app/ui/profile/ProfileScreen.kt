@@ -172,6 +172,7 @@ fun ProfileContent(vm: ProfileViewModel) {
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showPhotoOptions by remember { mutableStateOf(false) }
+    var showIntervalDialog by remember { mutableStateOf(false) }
     var showCameraPermissionDeniedMessage by remember { mutableStateOf(false) }
 
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
@@ -329,6 +330,17 @@ fun ProfileContent(vm: ProfileViewModel) {
                             vm.updateNotificationsEnabled(context, newValue)
                         }
                     }
+                    if (profile.notificationsEnabled) {
+                        item {
+                            SettingRow(
+                                icon = Icons.Default.Schedule,
+                                title = "Notification Interval",
+                                subtitle = if (profile.notificationIntervalHours == 1) "Every hour" else "Every ${profile.notificationIntervalHours} hours"
+                            ) {
+                                showIntervalDialog = true
+                            }
+                        }
+                    }
                     item {
                         SettingRow(icon = Icons.Default.Delete, title = "Delete account",
                             subtitle = "Permanently remove all data", iconColor = Color(0xFFFF5252)) {
@@ -394,6 +406,17 @@ fun ProfileContent(vm: ProfileViewModel) {
                             TextButton(onClick = { showPhotoOptions = false }) { Text("Cancel") }
                         },
                         containerColor = AppColors.surface
+                    )
+                }
+
+                if (showIntervalDialog) {
+                    NotificationIntervalDialog(
+                        currentHours = profile.notificationIntervalHours,
+                        onDismiss = { showIntervalDialog = false },
+                        onSave = { hours ->
+                            vm.updateNotificationInterval(context, hours)
+                            showIntervalDialog = false
+                        }
                     )
                 }
 

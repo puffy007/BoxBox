@@ -186,7 +186,8 @@ class ProfileViewModel(
         }
 
         if (enabled) {
-            com.boxbox.app.notifications.RaceCountdownScheduler.start(context)
+            val hours = (_profile.value as? UiState.Success)?.data?.notificationIntervalHours ?: 1
+            com.boxbox.app.notifications.RaceCountdownScheduler.start(context, hours)
         } else {
             com.boxbox.app.notifications.RaceCountdownScheduler.stop(context)
         }
@@ -203,9 +204,34 @@ class ProfileViewModel(
                 if (enabled) {
                     com.boxbox.app.notifications.RaceCountdownScheduler.stop(context)
                 } else {
-                    com.boxbox.app.notifications.RaceCountdownScheduler.start(context)
+                    val hours = (rollback as? UiState.Success)?.data?.notificationIntervalHours ?: 1
+                    com.boxbox.app.notifications.RaceCountdownScheduler.start(context, hours)
                 }
                 _actionResult.value = "Couldn't save notification setting: ${e.message}"
+            }
+        }
+    }
+
+    /**
+     * Updates how often (in hours, 1-12) the race countdown notification repeats, and
+     * reschedules the WorkManager periodic job immediately if notifications are currently
+     * enabled - so dragging the wheel picker has visible, immediate effect.
+     */
+    fun updateNotificationInterval(context: Context, hours: Int) {
+        val current = _profile.value
+        if (current is UiState.Success) {
+            _profile.value = UiState.Success(current.data.copy(notificationIntervalHours = hours))
+            if (current.data.notificationsEnabled) {
+                com.boxbox.app.notifications.RaceCountdownScheduler.start(context, hours)
+            }
+        }
+
+        val uid = repository.getCurrentUser()?.uid ?: return
+        viewModelScope.launch {
+            try {
+                repository.updateUserProfile(uid, mapOf("notificationIntervalHours" to hours))
+            } catch (e: Exception) {
+                _actionResult.value = "Couldn't save notification interval: ${e.message}"
             }
         }
     }

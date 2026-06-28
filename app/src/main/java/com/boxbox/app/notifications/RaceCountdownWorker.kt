@@ -11,19 +11,13 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 /**
- * Periodic worker (runs every ~1 minute while enabled) that finds the next race on the
- * schedule and shows a notification describing how far away it is - e.g.
- * "Race in 3h 24m" or, once the scheduled start time has passed, "Race is on now!".
+ * Periodic worker (runs on the interval the user picked, 1-12 hours) that finds the
+ * next race on the schedule and shows a notification describing how far away it is -
+ * e.g. "Race in 3h 24m" or, once the scheduled start time has passed, "Race is on now!".
  *
- * This is a TEST/dev tool to verify the countdown text and that notifications actually
- * arrive on a real device, separate from RaceNotificationScheduler's one-shot "30
- * minutes before" alarm. It's driven by WorkManager (not AlarmManager) because we want
- * a repeating job, and WorkManager handles periodic background work more reliably
- * across Doze/battery-optimization than a self-rescheduling AlarmManager chain would.
- *
- * Per WorkManager's own constraints, the OS will not run periodic work more often than
- * every 15 minutes in production - see RaceCountdownScheduler for how the 1-minute
- * interval requested here is actually achieved for testing.
+ * Scheduled by RaceCountdownScheduler as a real PeriodicWorkRequest - the user-chosen
+ * interval (minimum 1 hour) is comfortably above WorkManager's own 15-minute minimum,
+ * so no self-rescheduling chain is needed here; WorkManager handles the repetition.
  */
 class RaceCountdownWorker(
     context: Context,
@@ -56,14 +50,9 @@ class RaceCountdownWorker(
                 showNotification(applicationContext, title, body, channelId = CHANNEL_ID_RACE)
             }
 
-            // Keep the chain going - schedule the next check 1 minute from now.
-            RaceCountdownScheduler.scheduleNext(applicationContext)
             Result.success()
         } catch (e: Exception) {
             e.printStackTrace()
-            // Still keep the chain alive even if this particular run failed (e.g.
-            // a transient network error fetching the schedule).
-            RaceCountdownScheduler.scheduleNext(applicationContext)
             Result.success()
         }
     }

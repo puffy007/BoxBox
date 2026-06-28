@@ -184,6 +184,7 @@ data class UserProfile(
     val favouriteDriver: String = "",
     val favouriteTeam: String = "",
     val notificationsEnabled: Boolean = true,
+    val notificationIntervalHours: Int = 1,
     val racesWatched: Int = 0,
     @get:PropertyName("isDarkMode")
     @set:PropertyName("isDarkMode")
